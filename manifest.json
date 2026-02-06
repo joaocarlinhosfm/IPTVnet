@@ -1,15 +1,15 @@
 {
-  "name": "StreamLine IPTV",
+  "name": "StreamLine Red",
   "short_name": "StreamLine",
-  "description": "A tua Netflix pessoal de IPTV",
+  "description": "A tua TV, estilo cinema.",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#060606",
-  "theme_color": "#f59e0b",
+  "background_color": "#141414",
+  "theme_color": "#E50914",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/716/716429.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/5977/5977585.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

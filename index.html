@@ -3,119 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#f59e0b">
+    <meta name="theme-color" content="#141414">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>StreamLine Netflix</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>StreamLine Red</title>
     
     <link rel="manifest" href="manifest.json">
-    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --bg: #060606;
-            --surface: #121212;
-            --primary: #f59e0b;
+            --bg: #141414; /* Preto Netflix */
+            --surface: #1f1f1f;
+            --primary: #E50914; /* Vermelho Netflix */
             --text: #ffffff;
-            --text-muted: #a3a3a3;
-            --card-w: 160px;
+            --text-muted: #b3b3b3;
+            --card-w: 150px; /* Cartões ligeiramente mais estreitos e altos */
+            --card-h: 220px;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { 
-            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
+            margin: 0; font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--text); 
             overflow-x: hidden; scroll-behavior: smooth;
         }
 
         /* --- HEADER --- */
         header {
-            position: fixed; top: 0; width: 100%; height: 60px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            position: fixed; top: 0; width: 100%; height: 70px;
+            /* Gradiente mais agressivo do topo para baixo */
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 5%; z-index: 1000; transition: 0.3s;
+            padding: 0 4%; z-index: 1000; transition: 0.4s ease;
         }
-        header.scrolled { background: var(--bg); border-bottom: 1px solid #222; }
-        .logo { font-size: 1.4rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+        header.scrolled { background: var(--bg); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        /* Logo Vermelho e Bold */
+        .logo { font-size: 1.8rem; font-weight: 900; color: var(--primary); letter-spacing: -1px; text-transform: uppercase; }
+        .header-icon { color: white; font-size: 1.4rem; cursor: pointer; }
 
-        /* --- HERO --- */
+        /* --- HERO SECTION (CINEMÁTICO) --- */
         .hero {
-            height: 45vh; width: 100%;
-            background: linear-gradient(to top, var(--bg), transparent), url('https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=1350&q=80');
-            background-size: cover; background-position: center;
-            display: flex; flex-direction: column; justify-content: flex-end; padding: 0 5% 40px 5%;
+            height: 65vh; width: 100%;
+            /* Imagem mais dramática com overlay escuro forte */
+            background: linear-gradient(to top, var(--bg) 10%, transparent 80%), linear-gradient(to bottom, rgba(0,0,0,0.6), transparent), url('https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?auto=format&fit=crop&w=1500&q=80');
+            background-size: cover; background-position: center 20%;
+            display: flex; flex-direction: column; justify-content: flex-end; padding: 0 4% 60px 4%;
         }
-        .hero h2 { font-size: 2rem; margin: 0; }
-        .hero p { color: var(--text-muted); font-size: 0.9rem; margin: 5px 0; }
+        .hero h2 { font-size: 3rem; margin: 0; font-weight: 900; line-height: 1.1; max-width: 80%; }
+        .hero p { color: #eee; font-size: 1rem; margin: 15px 0 25px 0; font-weight: 600; }
+        .hero-btn {
+            background: var(--primary); color: white; border: none; padding: 12px 30px;
+            font-size: 1rem; font-weight: 800; border-radius: 4px; display: flex; align-items: center; gap: 10px; width: fit-content; cursor: pointer;
+        }
+        .hero-btn i { font-size: 1.2rem; }
 
         /* --- CARROSSEL --- */
-        .row { margin: 15px 0 25px 0; padding-left: 5%; }
-        .row-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; color: #e5e5e5; }
-        .carousel { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 15px; scrollbar-width: none; }
+        .row { margin: 35px 0; padding-left: 4%; }
+        .row-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 15px; color: #e5e5e5; }
+        .carousel { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; scrollbar-width: none; }
         .carousel::-webkit-scrollbar { display: none; }
 
+        /* --- NOVOS CARTÕES ESTILO POSTER --- */
         .card {
-            flex: 0 0 var(--card-w); background: var(--surface); border-radius: 8px;
-            overflow: hidden; position: relative; transition: 0.3s; cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.05);
+            flex: 0 0 var(--card-w); height: var(--card-h);
+            background: var(--surface); border-radius: 6px;
+            overflow: hidden; position: relative; transition: transform 0.3s; cursor: pointer;
         }
-        .card:active { transform: scale(0.95); }
-        .card-img { width: 100%; height: 95px; padding: 15px; display: flex; align-items: center; justify-content: center; background: #000; }
-        .card-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .card-body { padding: 10px; }
-        .card-body h3 { font-size: 0.8rem; margin: 0 0 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card:active { transform: scale(0.97); }
+        
+        /* A imagem agora ocupa tudo */
+        .card-img-container { width: 100%; height: 100%; position: relative; }
+        .card-img { width: 100%; height: 100%; object-fit: contain; padding: 20px; background: #000; }
+        
+        /* Overlay Gradiente para o texto ser legível */
+        .card-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
+            background: linear-gradient(to top, rgba(0,0,0,0.95) 20%, transparent);
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding: 10px;
+        }
 
-        .epg-info { font-size: 0.7rem; color: var(--primary); display: block; height: 1.2em; overflow: hidden; margin-bottom: 4px; }
-        .prog-bg { width: 100%; height: 3px; background: #333; border-radius: 2px; }
+        .card h3 { font-size: 0.9rem; margin: 0 0 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+        .epg-info { font-size: 0.75rem; color: #ddd; display: block; height: 1.2em; overflow: hidden; margin-bottom: 6px; font-weight: 600; }
+        
+        /* Barras de progresso vermelhas e finas */
+        .prog-bg { width: 100%; height: 2px; background: rgba(255,255,255,0.3); }
         .prog-fill { height: 100%; background: var(--primary); transition: 0.5s; }
 
-        /* --- MODAIS & UI --- */
-        #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; padding: 40px 20px; }
-        textarea, input { width: 100%; background: #222; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 8px; margin: 10px 0; font-family: inherit; }
-        .btn { width: 100%; padding: 15px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        
-        #loading { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 4000; flex-direction: column; align-items: center; justify-content: center; }
+        /* --- MODAIS --- */
+        #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; padding: 40px 25px; }
+        textarea, input { width: 100%; background: #333; color: #fff; border: 1px solid #444; padding: 15px; border-radius: 4px; margin: 10px 0; font-family: inherit; }
+        .btn { width: 100%; padding: 15px; border-radius: 4px; border: none; font-weight: 800; cursor: pointer; margin-top: 15px; }
+        #loading { display: none; position: fixed; inset: 0; background: #141414; z-index: 4000; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div id="loading">
-        <i class="fas fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 15px;"></i>
-        <span>Sincronizando Guia de TV...</span>
+        <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary); margin-bottom: 20px;"></i>
+        <span style="font-weight: 700; letter-spacing: 1px;">A CARREGAR TV...</span>
     </div>
 
     <header id="header">
-        <div class="logo">STREAMLINE</div>
-        <button onclick="openModal()" style="background:none; border:none; color:white; font-size:1.3rem;"><i class="fas fa-sliders-h"></i></button>
+        <div class="logo">N-STREAM</div>
+        <i class="fas fa-sliders-h header-icon" onclick="openModal()"></i>
     </header>
 
     <div id="hero-area" class="hero">
-        <h2 id="heroTitle">Bem-vindo</h2>
-        <p>Configura a tua lista para começar a assistir.</p>
+        <h2>TV EM DIRETO SEM LIMITES.</h2>
+        <p>Todos os teus canais, num só lugar.</p>
+        <button class="hero-btn" onclick="scrollToContent()">
+            <i class="fas fa-play"></i> COMEÇAR A VER
+        </button>
     </div>
 
     <div id="content"></div>
 
     <div id="modal">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2>Definições</h2>
-            <i class="fas fa-times" onclick="closeModal()" style="font-size:1.5rem; cursor:pointer"></i>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+            <h2 style="font-weight: 900; letter-spacing: -1px;">CONFIGURAÇÃO</h2>
+            <i class="fas fa-times header-icon" onclick="closeModal()"></i>
         </div>
         
-        <label style="font-size: 0.8rem; color: var(--text-muted);">LISTA M3U (TEXTO):</label>
-        <textarea id="m3uInput" rows="5" placeholder="Cola aqui o conteúdo do ficheiro .m3u"></textarea>
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700;">LISTA M3U:</label>
+        <textarea id="m3uInput" rows="5" placeholder="Cola a tua lista aqui..."></textarea>
         
-        <label style="font-size: 0.8rem; color: var(--text-muted);">LINK EPG (URL XMLTV):</label>
-        <input type="text" id="epgUrl" placeholder="http://teu-servidor.com/epg.xml">
+        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700;">LINK EPG (XMLTV):</label>
+        <input type="text" id="epgUrl" placeholder="http://...">
         
-        <button class="btn" style="background: var(--primary);" onclick="saveAndSync()">GUARDAR TUDO</button>
-        <button class="btn" style="background: #333; color: white;" onclick="closeModal()">FECHAR</button>
-        <button class="btn" style="background: #7f1d1d; color: white; margin-top: 30px;" onclick="clearData()">LIMPAR TUDO</button>
+        <button class="btn" style="background: var(--primary); color: white;" onclick="saveAndSync()">GUARDAR E SINCRONIZAR</button>
+        <button class="btn" style="background: transparent; border: 2px solid #444; color: white;" onclick="closeModal()">CANCELAR</button>
+        <button class="btn" style="background: #b90909; color: white; margin-top: 40px;" onclick="clearData()">APAGAR TUDO</button>
     </div>
 
     <script>
         let channels = JSON.parse(localStorage.getItem('nt_channels')) || [];
         let epgData = JSON.parse(localStorage.getItem('nt_epg')) || {};
+        // Link EPG padrão (o teu link)
         const defaultEPG = "http://tv-283077.ifiesta.net:8080/xmltv.php?username=TV-15468553750873&password=126635770844";
 
         window.onload = () => {
@@ -124,16 +149,27 @@
             } else {
                 document.getElementById('epgUrl').value = localStorage.getItem('nt_epg_url');
             }
-            if(channels.length > 0) autoSyncEPG();
+            
+            if(channels.length > 0) {
+                 document.getElementById('hero-area').style.display = 'none';
+                 // Sincroniza EPG em background ao iniciar
+                 autoSyncEPG();
+            } else {
+                 document.getElementById('hero-area').style.display = 'flex';
+            }
             render();
         };
 
         window.onscroll = () => {
-            document.getElementById('header').classList.toggle('scrolled', window.scrollY > 30);
+            document.getElementById('header').classList.toggle('scrolled', window.scrollY > 50);
         };
 
         function openModal() { document.getElementById('modal').style.display = 'block'; }
         function closeModal() { document.getElementById('modal').style.display = 'none'; }
+        function scrollToContent() { 
+            if(channels.length > 0) document.getElementById('content').scrollIntoView({behavior: 'smooth'});
+            else openModal();
+        }
 
         async function saveAndSync() {
             const m3u = document.getElementById('m3uInput').value;
@@ -145,16 +181,18 @@
                 await fetchEPG(epgUrl);
             }
             closeModal();
+            document.getElementById('hero-area').style.display = 'none';
             render();
         }
 
         async function autoSyncEPG() {
             const url = localStorage.getItem('nt_epg_url') || defaultEPG;
-            await fetchEPG(url);
+            // Não bloqueia o ecrã, faz em background
+            fetchEPG(url, true);
         }
 
-        async function fetchEPG(url) {
-            document.getElementById('loading').style.display = 'flex';
+        async function fetchEPG(url, background = false) {
+            if(!background) document.getElementById('loading').style.display = 'flex';
             try {
                 const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
                 const res = await fetch(proxy);
@@ -163,7 +201,7 @@
             } catch (e) {
                 console.error("Erro EPG:", e);
             } finally {
-                document.getElementById('loading').style.display = 'none';
+                if(!background) document.getElementById('loading').style.display = 'none';
                 render();
             }
         }
@@ -217,12 +255,7 @@
         function render() {
             const container = document.getElementById('content');
             container.innerHTML = '';
-            if(channels.length === 0) {
-                document.getElementById('hero-area').style.display = 'flex';
-                return;
-            }
             
-            document.getElementById('hero-area').style.display = 'none';
             const groups = {};
             channels.forEach(c => {
                 if(!groups[c.group]) groups[c.group] = [];
@@ -240,20 +273,22 @@
                     const now = Date.now();
                     const schedule = epgData[c.id] || [];
                     const current = schedule.find(p => now >= p.start && now <= p.stop);
-                    let title = "Direto", progress = 0;
+                    let title = "", progress = 0;
                     if(current) {
                         title = current.title;
                         progress = ((now - current.start) / (current.stop - current.start)) * 100;
                     }
+                    
+                    // NOVA ESTRUTURA DO CARTÃO (Overlay)
                     carousel.innerHTML += `
                         <div class="card" onclick="location='intent:${c.url}#Intent;package=org.videolan.vlc;type=video/*;end'">
-                            <div class="card-img">
-                                ${c.logo ? `<img src="${c.logo}" onerror="this.src='';this.className='fas fa-tv'">` : `<i class="fas fa-tv"></i>`}
-                            </div>
-                            <div class="card-body">
-                                <h3>${c.name}</h3>
-                                <span class="epg-info">${title}</span>
-                                <div class="prog-bg"><div class="prog-fill" style="width:${progress}%"></div></div>
+                            <div class="card-img-container">
+                                ${c.logo ? `<img src="${c.logo}" class="card-img" onerror="this.src='';this.style.display='none'">` : ``}
+                                <div class="card-overlay">
+                                    <h3>${c.name}</h3>
+                                    ${title ? `<span class="epg-info">${title}</span>` : ''}
+                                    ${progress > 0 ? `<div class="prog-bg"><div class="prog-fill" style="width:${progress}%"></div></div>` : ''}
+                                </div>
                             </div>
                         </div>`;
                 });
@@ -262,7 +297,7 @@
             }
         }
 
-        function clearData() { if(confirm("Apagar tudo?")) { localStorage.clear(); location.reload(); } }
+        function clearData() { if(confirm("Tens a certeza? Isto apaga a lista e o guia.")) { localStorage.clear(); location.reload(); } }
     </script>
 </body>
 </html>
