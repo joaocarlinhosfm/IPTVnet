@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#f59e0b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>StreamLine Netflix</title>
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #060606;
+            --surface: #121212;
+            --primary: #f59e0b;
+            --text: #ffffff;
+            --text-muted: #a3a3a3;
+            --card-w: 160px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
+            overflow-x: hidden; scroll-behavior: smooth;
+        }
+
+        /* --- HEADER --- */
+        header {
+            position: fixed; top: 0; width: 100%; height: 60px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 5%; z-index: 1000; transition: 0.3s;
+        }
+        header.scrolled { background: var(--bg); border-bottom: 1px solid #222; }
+        .logo { font-size: 1.4rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+
+        /* --- HERO --- */
+        .hero {
+            height: 45vh; width: 100%;
+            background: linear-gradient(to top, var(--bg), transparent), url('https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=1350&q=80');
+            background-size: cover; background-position: center;
+            display: flex; flex-direction: column; justify-content: flex-end; padding: 0 5% 40px 5%;
+        }
+        .hero h2 { font-size: 2rem; margin: 0; }
+        .hero p { color: var(--text-muted); font-size: 0.9rem; margin: 5px 0; }
+
+        /* --- CARROSSEL --- */
+        .row { margin: 15px 0 25px 0; padding-left: 5%; }
+        .row-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; color: #e5e5e5; }
+        .carousel { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 15px; scrollbar-width: none; }
+        .carousel::-webkit-scrollbar { display: none; }
+
+        .card {
+            flex: 0 0 var(--card-w); background: var(--surface); border-radius: 8px;
+            overflow: hidden; position: relative; transition: 0.3s; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .card:active { transform: scale(0.95); }
+        .card-img { width: 100%; height: 95px; padding: 15px; display: flex; align-items: center; justify-content: center; background: #000; }
+        .card-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .card-body { padding: 10px; }
+        .card-body h3 { font-size: 0.8rem; margin: 0 0 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .epg-info { font-size: 0.7rem; color: var(--primary); display: block; height: 1.2em; overflow: hidden; margin-bottom: 4px; }
+        .prog-bg { width: 100%; height: 3px; background: #333; border-radius: 2px; }
+        .prog-fill { height: 100%; background: var(--primary); transition: 0.5s; }
+
+        /* --- MODAIS & UI --- */
+        #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; padding: 40px 20px; }
+        textarea, input { width: 100%; background: #222; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 8px; margin: 10px 0; font-family: inherit; }
+        .btn { width: 100%; padding: 15px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        #loading { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 4000; flex-direction: column; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">
+        <i class="fas fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 15px;"></i>
+        <span>Sincronizando Guia de TV...</span>
+    </div>
+
+    <header id="header">
+        <div class="logo">STREAMLINE</div>
+        <button onclick="openModal()" style="background:none; border:none; color:white; font-size:1.3rem;"><i class="fas fa-sliders-h"></i></button>
+    </header>
+
+    <div id="hero-area" class="hero">
+        <h2 id="heroTitle">Bem-vindo</h2>
+        <p>Configura a tua lista para começar a assistir.</p>
+    </div>
+
+    <div id="content"></div>
+
+    <div id="modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2>Definições</h2>
+            <i class="fas fa-times" onclick="closeModal()" style="font-size:1.5rem; cursor:pointer"></i>
+        </div>
+        
+        <label style="font-size: 0.8rem; color: var(--text-muted);">LISTA M3U (TEXTO):</label>
+        <textarea id="m3uInput" rows="5" placeholder="Cola aqui o conteúdo do ficheiro .m3u"></textarea>
+        
+        <label style="font-size: 0.8rem; color: var(--text-muted);">LINK EPG (URL XMLTV):</label>
+        <input type="text" id="epgUrl" placeholder="http://teu-servidor.com/epg.xml">
+        
+        <button class="btn" style="background: var(--primary);" onclick="saveAndSync()">GUARDAR TUDO</button>
+        <button class="btn" style="background: #333; color: white;" onclick="closeModal()">FECHAR</button>
+        <button class="btn" style="background: #7f1d1d; color: white; margin-top: 30px;" onclick="clearData()">LIMPAR TUDO</button>
+    </div>
+
+    <script>
+        let channels = JSON.parse(localStorage.getItem('nt_channels')) || [];
+        let epgData = JSON.parse(localStorage.getItem('nt_epg')) || {};
+        const defaultEPG = "http://tv-283077.ifiesta.net:8080/xmltv.php?username=TV-15468553750873&password=126635770844";
+
+        window.onload = () => {
+            if(!localStorage.getItem('nt_epg_url')) {
+                document.getElementById('epgUrl').value = defaultEPG;
+            } else {
+                document.getElementById('epgUrl').value = localStorage.getItem('nt_epg_url');
+            }
+            if(channels.length > 0) autoSyncEPG();
+            render();
+        };
+
+        window.onscroll = () => {
+            document.getElementById('header').classList.toggle('scrolled', window.scrollY > 30);
+        };
+
+        function openModal() { document.getElementById('modal').style.display = 'block'; }
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+        async function saveAndSync() {
+            const m3u = document.getElementById('m3uInput').value;
+            const epgUrl = document.getElementById('epgUrl').value;
+            
+            if(m3u) parseM3U(m3u);
+            if(epgUrl) {
+                localStorage.setItem('nt_epg_url', epgUrl);
+                await fetchEPG(epgUrl);
+            }
+            closeModal();
+            render();
+        }
+
+        async function autoSyncEPG() {
+            const url = localStorage.getItem('nt_epg_url') || defaultEPG;
+            await fetchEPG(url);
+        }
+
+        async function fetchEPG(url) {
+            document.getElementById('loading').style.display = 'flex';
+            try {
+                const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const res = await fetch(proxy);
+                const data = await res.json();
+                if(data.contents) parseEPG(data.contents);
+            } catch (e) {
+                console.error("Erro EPG:", e);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                render();
+            }
+        }
+
+        function parseM3U(text) {
+            const lines = text.split('\n');
+            const news = [];
+            let temp = {};
+            lines.forEach(l => {
+                if(l.startsWith('#EXTINF')) {
+                    const id = l.match(/tvg-id="([^"]*)"/);
+                    const logo = l.match(/tvg-logo="([^"]*)"/);
+                    const group = l.match(/group-title="([^"]*)"/);
+                    temp = { 
+                        id: id ? id[1] : "", 
+                        name: l.split(',')[1]?.trim() || "Canal",
+                        logo: logo ? logo[1] : "",
+                        group: group ? group[1] : "Geral"
+                    };
+                } else if(l.startsWith('http')) {
+                    temp.url = l.trim(); news.push(temp); temp = {};
+                }
+            });
+            channels = news;
+            localStorage.setItem('nt_channels', JSON.stringify(channels));
+        }
+
+        function parseEPG(xmlText) {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(xmlText, "text/xml");
+            const progs = xml.getElementsByTagName('programme');
+            const newEpg = {};
+            for(let p of progs) {
+                const cid = p.getAttribute('channel');
+                if(!newEpg[cid]) newEpg[cid] = [];
+                newEpg[cid].push({
+                    start: parseT(p.getAttribute('start')),
+                    stop: parseT(p.getAttribute('stop')),
+                    title: p.getElementsByTagName('title')[0]?.textContent || "Programação"
+                });
+            }
+            epgData = newEpg;
+            localStorage.setItem('nt_epg', JSON.stringify(epgData));
+        }
+
+        function parseT(t) {
+            if(!t) return 0;
+            return new Date(t.substring(0,4), t.substring(4,6)-1, t.substring(6,8), t.substring(8,10), t.substring(10,12)).getTime();
+        }
+
+        function render() {
+            const container = document.getElementById('content');
+            container.innerHTML = '';
+            if(channels.length === 0) {
+                document.getElementById('hero-area').style.display = 'flex';
+                return;
+            }
+            
+            document.getElementById('hero-area').style.display = 'none';
+            const groups = {};
+            channels.forEach(c => {
+                if(!groups[c.group]) groups[c.group] = [];
+                groups[c.group].push(c);
+            });
+
+            for(let gName in groups) {
+                const row = document.createElement('div');
+                row.className = 'row';
+                row.innerHTML = `<div class="row-title">${gName}</div>`;
+                const carousel = document.createElement('div');
+                carousel.className = 'carousel';
+                
+                groups[gName].forEach(c => {
+                    const now = Date.now();
+                    const schedule = epgData[c.id] || [];
+                    const current = schedule.find(p => now >= p.start && now <= p.stop);
+                    let title = "Direto", progress = 0;
+                    if(current) {
+                        title = current.title;
+                        progress = ((now - current.start) / (current.stop - current.start)) * 100;
+                    }
+                    carousel.innerHTML += `
+                        <div class="card" onclick="location='intent:${c.url}#Intent;package=org.videolan.vlc;type=video/*;end'">
+                            <div class="card-img">
+                                ${c.logo ? `<img src="${c.logo}" onerror="this.src='';this.className='fas fa-tv'">` : `<i class="fas fa-tv"></i>`}
+                            </div>
+                            <div class="card-body">
+                                <h3>${c.name}</h3>
+                                <span class="epg-info">${title}</span>
+                                <div class="prog-bg"><div class="prog-fill" style="width:${progress}%"></div></div>
+                            </div>
+                        </div>`;
+                });
+                row.appendChild(carousel);
+                container.appendChild(row);
+            }
+        }
+
+        function clearData() { if(confirm("Apagar tudo?")) { localStorage.clear(); location.reload(); } }
+    </script>
+</body>
+</html>
