@@ -1,10 +1,9 @@
 /**
- * N-STREAM - Lógica de Importação e Renderização
+ * N-STREAM - Core Engine
  */
 
 let allChannels = JSON.parse(localStorage.getItem('my_channels')) || [];
 
-// Inicialização ao carregar a página
 window.onload = () => {
     if (allChannels.length === 0) {
         toggleModal(true);
@@ -14,44 +13,46 @@ window.onload = () => {
     }
 };
 
+// Efeito de Header no Scroll
+window.onscroll = () => {
+    const header = document.getElementById('main-header');
+    header.classList.toggle('scrolled', window.scrollY > 50);
+};
+
 function toggleModal(show) {
     document.getElementById('config-modal').style.display = show ? 'flex' : 'none';
 }
 
-// 1. IMPORTAÇÃO VIA FICHEIRO LOCAL
+function toggleSearch(show) {
+    const overlay = document.getElementById('search-overlay');
+    overlay.style.display = show ? 'flex' : 'none';
+    if(show) document.getElementById('search-field').focus();
+}
+
 function loadFromFile(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => processM3U(e.target.result);
     reader.readAsText(file);
 }
 
-// 2. IMPORTAÇÃO VIA URL (LINK)
 async function loadFromUrl() {
     const url = document.getElementById('m3u-url').value.trim();
-    if (!url) return alert("Insira um link válido.");
-
+    if (!url) return;
     toggleModal(false);
-    // Usamos o corsproxy.io para tentar contornar bloqueios de segurança do navegador
     const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-
     try {
         const response = await fetch(proxy);
         const text = await response.text();
-        if (text.includes("#EXTM3U")) {
-            processM3U(text);
-        } else {
-            throw new Error("Não é um M3U válido");
-        }
+        if (text.includes("#EXTM3U")) processM3U(text);
+        else throw new Error();
     } catch (err) {
-        alert("Erro: O servidor bloqueou o acesso direto ao link. Tente carregar o ficheiro .m3u manualmente.");
+        alert("Erro ao carregar link. Use a importação de ficheiro.");
         toggleModal(true);
     }
 }
 
-// 3. PROCESSAMENTO DO TEXTO M3U
 function processM3U(text) {
     const lines = text.split(/\r?\n/);
     const channels = [];
@@ -60,14 +61,10 @@ function processM3U(text) {
     lines.forEach(line => {
         line = line.trim();
         if (line.startsWith('#EXTINF')) {
-            const name = line.split(',')[1]?.trim() || "Canal sem nome";
+            const name = line.split(',')[1]?.trim() || "Canal";
             const logo = line.match(/tvg-logo="([^"]*)"/);
             const group = line.match(/group-title="([^"]*)"/);
-            current = { 
-                name, 
-                logo: logo ? logo[1] : '', 
-                group: group ? group[1] : 'Canais Gerais' 
-            };
+            current = { name, logo: logo ? logo[1] : '', group: group ? group[1] : 'Premium' };
         } else if (line.startsWith('http')) {
             current.url = line;
             channels.push(current);
@@ -76,37 +73,30 @@ function processM3U(text) {
     });
 
     if (channels.length > 0) {
-        allChannels = channels;
-        localStorage.setItem('my_channels', JSON.stringify(allChannels));
-        location.reload(); // Recarrega para aplicar tudo limpo
-    } else {
-        alert("Nenhum canal encontrado na lista.");
+        localStorage.setItem('my_channels', JSON.stringify(channels));
+        location.reload();
     }
 }
 
-// 4. RENDERIZAÇÃO DA INTERFACE
-function renderApp(data) {
-    const container = document.getElementById('content');
+function renderApp(data, targetContainer = "content") {
+    const container = document.getElementById(targetContainer);
     container.innerHTML = '';
 
-    // Configura o Banner de Destaque (Hero)
-    setupHero(data);
+    if(targetContainer === "content") setupHero(data);
 
-    // Agrupa canais por categorias
     const groups = data.reduce((acc, ch) => {
-        const groupName = ch.group || 'Gerais';
+        const groupName = ch.group || 'Geral';
         acc[groupName] = acc[groupName] || [];
         acc[groupName].push(ch);
         return acc;
     }, {});
 
-    // Cria as linhas (rows) de canais
     Object.keys(groups).sort().forEach((group, idx) => {
         const row = document.createElement('div');
         row.className = 'row';
         row.style.animationDelay = `${idx * 0.1}s`;
-        
         row.innerHTML = `<div class="row-title">${group}</div>`;
+        
         const carousel = document.createElement('div');
         carousel.className = 'carousel';
 
@@ -115,9 +105,11 @@ function renderApp(data) {
             card.className = 'card';
             card.onclick = () => window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
             
-            const img = ch.logo ? `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/150x220/111/fff?text=TV'">` : `<i class="fas fa-tv" style="font-size:2rem;color:#333"></i>`;
+            const content = ch.logo ? 
+                `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/160x230/111/444?text=TV'">` : 
+                `<i class="fas fa-play" style="font-size:2rem;color:#222"></i>`;
             
-            card.innerHTML = `${img}<div class="card-info">${ch.name}</div>`;
+            card.innerHTML = `${content}<div class="card-info">${ch.name}</div>`;
             carousel.appendChild(card);
         });
 
@@ -126,7 +118,6 @@ function renderApp(data) {
     });
 }
 
-// 5. CONFIGURAÇÃO DO CANAL EM DESTAQUE
 function setupHero(data) {
     const hero = document.getElementById('hero-featured');
     const random = data[Math.floor(Math.random() * data.length)];
@@ -135,16 +126,14 @@ function setupHero(data) {
     document.getElementById('hero-play').onclick = () => {
         window.location.href = `intent:${random.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
     };
+    
+    // Imagem de background genérica ou o logo se for de alta qualidade
+    hero.style.backgroundImage = `url('https://images.unsplash.com/photo-1616469829581-73993eb86b02?auto=format&fit=crop&w=1920&q=80')`;
     hero.style.display = 'flex';
 }
 
-// 6. FILTRO DE PESQUISA
 function filterChannels() {
-    const query = document.getElementById('search').value.toLowerCase();
+    const query = document.getElementById('search-field').value.toLowerCase();
     const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
-    
-    const hero = document.getElementById('hero-featured');
-    hero.style.display = query ? 'none' : 'flex';
-    
-    renderApp(filtered);
+    renderApp(filtered, "search-results");
 }
