@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StreamLine JS</title>
+    <title>StreamLine Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -26,20 +26,40 @@
         .content { padding-top: 80px; }
         .row { margin-bottom: 30px; padding-left: 4%; }
         .row-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; }
-        .carousel { display: flex; overflow-x: auto; gap: 10px; scrollbar-width: none; padding-bottom: 10px; }
+        .carousel { display: flex; overflow-x: auto; gap: 12px; scrollbar-width: none; padding-bottom: 20px; }
         .carousel::-webkit-scrollbar { display: none; }
 
-        /* Cartão estilo Poster */
+        /* --- CORREÇÃO DOS CARTÕES --- */
         .card { 
-            flex: 0 0 140px; height: 200px; background: #000; border-radius: 4px; 
-            position: relative; cursor: pointer; transition: 0.3s ease;
+            flex: 0 0 140px; 
+            height: 200px; 
+            background: #0a0a0a; /* Fundo ligeiramente mais claro que o body para contraste */
+            border-radius: 6px; 
+            position: relative; 
+            cursor: pointer; 
+            transition: 0.3s ease;
+            border: 1px solid #222;
+            
+            /* FLEXBOX PARA CENTRAR A IMAGEM */
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        .card:hover { transform: scale(1.05); z-index: 10; }
-        .card img { width: 100%; height: 100%; object-fit: contain; padding: 20px; }
+        
+        .card:hover { transform: scale(1.05); z-index: 10; border-color: var(--red); }
+        
+        .card img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; /* Garante que o logo não distorce */
+            padding: 15px; /* Espaço de respiração à volta do logo */
+        }
+        
         .card-info { 
-            position: absolute; bottom: 0; width: 100%; padding: 10px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.9));
-            font-size: 0.7rem; font-weight: 700; text-align: center;
+            position: absolute; bottom: 0; width: 100%; padding: 12px 8px;
+            background: linear-gradient(to top, rgba(0,0,0,1), transparent);
+            font-size: 0.75rem; font-weight: 700; text-align: center;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
         /* Config Modal */
@@ -47,36 +67,46 @@
             display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); 
             z-index: 2000; padding: 50px 20px; text-align: center; 
         }
-        input[type="text"] { width: 100%; max-width: 400px; padding: 15px; margin: 20px 0; border-radius: 5px; border: none; }
-        .btn { background: var(--red); color: white; padding: 15px 40px; border: none; border-radius: 5px; font-weight: 900; cursor: pointer; }
+        input[type="text"] { width: 100%; max-width: 400px; padding: 15px; margin: 20px 0; border-radius: 5px; border: 1px solid #333; background: #222; color: white; }
+        .btn { background: var(--red); color: white; padding: 15px 40px; border: none; border-radius: 5px; font-weight: 900; cursor: pointer; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-outline { background: transparent; border: 2px solid #444; margin-top: 15px; }
     </style>
 </head>
 <body>
 
     <header id="navbar">
-        <div style="color: var(--red); font-weight: 900; font-size: 1.5rem;">N</div>
+        <div style="color: var(--red); font-weight: 900; font-size: 1.8rem; letter-spacing: -1px;">N-STREAM</div>
         <input type="text" id="search" class="search-box" placeholder="Procurar canal..." oninput="filterChannels()">
-        <i class="fas fa-cog" onclick="toggleModal(true)" style="cursor:pointer"></i>
+        <i class="fas fa-sliders-h" onclick="toggleModal(true)" style="cursor:pointer; font-size: 1.4rem;"></i>
     </header>
 
-    <div id="content" class="content">
-        </div>
+    <div id="content" class="content"></div>
 
     <div id="config-modal">
-        <h2>Configuração de Lista</h2>
-        <p>Insere o link .m3u ou carrega o ficheiro</p>
-        <input type="text" id="m3u-url" placeholder="https://link-da-tua-lista.m3u">
-        <br>
-        <button class="btn" onclick="loadFromUrl()">ATUALIZAR VIA LINK</button>
-        <div style="margin: 20px;">OU</div>
+        <h2 style="font-weight: 900; font-size: 2rem;">CONFIGURAR</h2>
+        <p style="color: #999;">Usa um link .m3u (pode falhar devido a bloqueios) ou carrega o ficheiro diretamente.</p>
+        
+        <input type="text" id="m3u-url" placeholder="https://exemplo.com/lista.m3u">
+        <button class="btn" onclick="loadFromUrl()">TENTAR LINK</button>
+        
+        <div style="margin: 30px 0; position: relative; height: 1px; background: #333;">
+            <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--black); padding: 0 10px; color: #666; font-size: 0.8rem;">OPÇÃO RECOMENDADA</span>
+        </div>
+        
         <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
-        <button class="btn" style="background:#444" onclick="document.getElementById('file-input').click()">CARREGAR FICHEIRO .M3U</button>
+        <button class="btn btn-outline" onclick="document.getElementById('file-input').click()">
+            <i class="fas fa-file-upload" style="margin-right: 10px;"></i> CARREGAR FICHEIRO LOCAL
+        </button>
+
+        <button class="btn btn-outline" style="border-color: #b90909; color: #b90909; margin-top: 50px;" onclick="clearAll()">RESET APP</button>
+        <br><br>
+        <span style="color: #666; cursor: pointer; font-size: 0.9rem;" onclick="toggleModal(false)">Fechar</span>
     </div>
 
     <script>
         let allChannels = JSON.parse(localStorage.getItem('my_channels')) || [];
 
-        // Inicialização
         window.onload = () => {
             if (allChannels.length === 0) toggleModal(true);
             else render(allChannels);
@@ -86,94 +116,10 @@
             document.getElementById('config-modal').style.display = show ? 'block' : 'none';
         }
 
-        // JS para ler ficheiro local (Ignora CORS)
         function loadFromFile(event) {
             const reader = new FileReader();
             reader.onload = (e) => processM3U(e.target.result);
             reader.readAsText(event.target.files[0]);
         }
 
-        // JS para ler URL (Usa Proxy)
         async function loadFromUrl() {
-            const url = document.getElementById('m3u-url').value;
-            if (!url) return;
-            try {
-                const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                const response = await fetch(proxy);
-                const data = await response.json();
-                processM3U(data.contents);
-            } catch (err) {
-                alert("Erro ao carregar link. Tenta a opção de ficheiro.");
-            }
-        }
-
-        function processM3U(text) {
-            const lines = text.split('\n');
-            const channels = [];
-            let currentChannel = {};
-
-            lines.forEach(line => {
-                line = line.trim();
-                if (line.startsWith('#EXTINF')) {
-                    const name = line.split(',')[1];
-                    const logo = line.match(/tvg-logo="([^"]*)"/);
-                    const group = line.match(/group-title="([^"]*)"/);
-                    currentChannel = { 
-                        name: name, 
-                        logo: logo ? logo[1] : '', 
-                        group: group ? group[1] : 'Geral' 
-                    };
-                } else if (line.startsWith('http')) {
-                    currentChannel.url = line;
-                    channels.push(currentChannel);
-                }
-            });
-
-            allChannels = channels;
-            localStorage.setItem('my_channels', JSON.stringify(allChannels));
-            render(allChannels);
-            toggleModal(false);
-        }
-
-        function render(data) {
-            const container = document.getElementById('content');
-            container.innerHTML = '';
-            
-            const groups = data.reduce((acc, ch) => {
-                acc[ch.group] = acc[ch.group] || [];
-                acc[ch.group].push(ch);
-                return acc;
-            }, {});
-
-            for (const group in groups) {
-                const row = document.createElement('div');
-                row.className = 'row';
-                row.innerHTML = `<div class="row-title">${group}</div>`;
-                
-                const carousel = document.createElement('div');
-                carousel.className = 'carousel';
-                
-                groups[group].forEach(ch => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.onclick = () => window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
-                    card.innerHTML = `
-                        ${ch.logo ? `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/140x200?text=TV'">` : `<img src="https://via.placeholder.com/140x200?text=${ch.name}">`}
-                        <div class="card-info">${ch.name}</div>
-                    `;
-                    carousel.appendChild(card);
-                });
-                
-                row.appendChild(carousel);
-                container.appendChild(row);
-            }
-        }
-
-        function filterChannels() {
-            const query = document.getElementById('search').value.toLowerCase();
-            const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
-            render(filtered);
-        }
-    </script>
-</body>
-</html>
