@@ -3,176 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#141414">
-    <title>N-Stream Pro</title>
-    <link rel="manifest" href="manifest.json">
+    <title>StreamLine JS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #141414; --primary: #E50914; --text: #ffffff; --card-w: 140px; --card-h: 200px; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
-        header { position: fixed; top: 0; width: 100%; height: 70px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); display: flex; align-items: center; justify-content: space-between; padding: 0 5%; z-index: 1000; }
-        .logo { font-size: 1.8rem; font-weight: 900; color: var(--primary); text-transform: uppercase; }
-        .hero { height: 50vh; width: 100%; background: linear-gradient(to top, var(--bg), transparent), url('https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?auto=format&fit=crop&w=1500&q=80') center/cover; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 5% 40px 5%; }
-        .row { margin: 25px 0; padding-left: 5%; }
-        .row-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; color: #e5e5e5; text-transform: uppercase; }
-        .carousel { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 10px; scrollbar-width: none; }
+        :root { --red: #E50914; --black: #141414; --gray: #2f2f2f; }
+        body { margin: 0; font-family: 'Montserrat', sans-serif; background: var(--black); color: white; overflow-x: hidden; }
+        
+        /* Navbar & Search */
+        header { 
+            position: fixed; top: 0; width: 100%; height: 70px; 
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 4%; z-index: 1000;
+        }
+        .search-box {
+            background: rgba(0,0,0,0.5); border: 1px solid #555; color: white;
+            padding: 8px 15px; border-radius: 20px; width: 40%; transition: 0.3s;
+        }
+        .search-box:focus { width: 60%; outline: none; border-color: var(--red); }
+
+        /* Categorias */
+        .content { padding-top: 80px; }
+        .row { margin-bottom: 30px; padding-left: 4%; }
+        .row-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; }
+        .carousel { display: flex; overflow-x: auto; gap: 10px; scrollbar-width: none; padding-bottom: 10px; }
         .carousel::-webkit-scrollbar { display: none; }
-        .card { flex: 0 0 var(--card-w); height: var(--card-h); background: #000; border-radius: 4px; overflow: hidden; position: relative; cursor: pointer; }
-        .card-img { width: 100%; height: 100%; object-fit: contain; padding: 20px; }
-        .card-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 50%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); display: flex; align-items: flex-end; padding: 10px; }
-        .card h3 { font-size: 0.75rem; margin: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
-        #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; padding: 40px 25px; }
-        input { width: 100%; background: #333; color: #fff; border: 1px solid #444; padding: 15px; border-radius: 4px; margin: 10px 0; }
-        .btn { width: 100%; padding: 15px; border-radius: 4px; border: none; font-weight: 800; cursor: pointer; margin-top: 10px; }
-        #loading { display: none; position: fixed; inset: 0; background: #141414; z-index: 4000; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Cartão estilo Poster */
+        .card { 
+            flex: 0 0 140px; height: 200px; background: #000; border-radius: 4px; 
+            position: relative; cursor: pointer; transition: 0.3s ease;
+        }
+        .card:hover { transform: scale(1.05); z-index: 10; }
+        .card img { width: 100%; height: 100%; object-fit: contain; padding: 20px; }
+        .card-info { 
+            position: absolute; bottom: 0; width: 100%; padding: 10px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            font-size: 0.7rem; font-weight: 700; text-align: center;
+        }
+
+        /* Config Modal */
+        #config-modal { 
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); 
+            z-index: 2000; padding: 50px 20px; text-align: center; 
+        }
+        input[type="text"] { width: 100%; max-width: 400px; padding: 15px; margin: 20px 0; border-radius: 5px; border: none; }
+        .btn { background: var(--red); color: white; padding: 15px 40px; border: none; border-radius: 5px; font-weight: 900; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="loading">
-        <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary); margin-bottom: 20px;"></i>
-        <span id="loading-text">A TENTAR LIGAÇÃO...</span>
-    </div>
-
-    <header>
-        <div class="logo">N-STREAM</div>
-        <i class="fas fa-cog" style="cursor:pointer" onclick="openModal()"></i>
+    <header id="navbar">
+        <div style="color: var(--red); font-weight: 900; font-size: 1.5rem;">N</div>
+        <input type="text" id="search" class="search-box" placeholder="Procurar canal..." oninput="filterChannels()">
+        <i class="fas fa-cog" onclick="toggleModal(true)" style="cursor:pointer"></i>
     </header>
 
-    <div id="hero-area" class="hero">
-        <button class="btn" style="background: var(--primary); color: white; width: fit-content; padding: 12px 25px;" onclick="openModal()">CONFIGURAR LISTA</button>
-    </div>
+    <div id="content" class="content">
+        </div>
 
-    <div id="content"></div>
-
-    <div id="modal">
-        <h2 style="font-weight: 900;">DEFINIÇÕES</h2>
-        <input type="text" id="m3uUrl" placeholder="Cola aqui o teu link .m3u">
-        <button class="btn" style="background: var(--primary); color: white;" onclick="fetchAndSaveM3U()">SINCRONIZAR</button>
-        <button class="btn" style="background: transparent; border: 1px solid #444; color: white;" onclick="closeModal()">FECHAR</button>
-        <button class="btn" style="background: #b90909; color: white; margin-top: 40px;" onclick="clearAll()">LIMPAR TUDO</button>
+    <div id="config-modal">
+        <h2>Configuração de Lista</h2>
+        <p>Insere o link .m3u ou carrega o ficheiro</p>
+        <input type="text" id="m3u-url" placeholder="https://link-da-tua-lista.m3u">
+        <br>
+        <button class="btn" onclick="loadFromUrl()">ATUALIZAR VIA LINK</button>
+        <div style="margin: 20px;">OU</div>
+        <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
+        <button class="btn" style="background:#444" onclick="document.getElementById('file-input').click()">CARREGAR FICHEIRO .M3U</button>
     </div>
 
     <script>
-        let channels = JSON.parse(localStorage.getItem('ns_url_channels')) || [];
+        let allChannels = JSON.parse(localStorage.getItem('my_channels')) || [];
 
+        // Inicialização
         window.onload = () => {
-            const savedUrl = localStorage.getItem('ns_url_link');
-            if(savedUrl) {
-                document.getElementById('m3uUrl').value = savedUrl;
-                document.getElementById('hero-area').style.display = 'none';
-                render();
-                fetchAndSaveM3U(true);
-            }
+            if (allChannels.length === 0) toggleModal(true);
+            else render(allChannels);
         };
 
-        function openModal() { document.getElementById('modal').style.display = 'block'; }
-        function closeModal() { document.getElementById('modal').style.display = 'none'; }
-
-        async function fetchAndSaveM3U(isBackground = false) {
-            const url = document.getElementById('m3uUrl').value.trim();
-            if(!url) return;
-
-            if(!isBackground) document.getElementById('loading').style.display = 'flex';
-            
-            // LISTA DE PROXIES PARA TENTAR (Caso um falhe, tenta o próximo)
-            const proxies = [
-                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`
-            ];
-
-            let success = false;
-            let content = "";
-
-            for(let proxyFn of proxies) {
-                try {
-                    const pUrl = proxyFn(url);
-                    const response = await fetch(pUrl);
-                    if (!response.ok) continue;
-
-                    if (pUrl.includes("allorigins")) {
-                        const json = await response.json();
-                        content = json.contents;
-                    } else {
-                        content = await response.text();
-                    }
-
-                    if (content && content.includes("#EXTM3U")) {
-                        success = true;
-                        break; 
-                    }
-                } catch (e) {
-                    console.log("Tentativa de proxy falhou, a tentar o próximo...");
-                }
-            }
-
-            if (success) {
-                parseM3U(content);
-                localStorage.setItem('ns_url_link', url);
-                render();
-                if(!isBackground) closeModal();
-            } else {
-                if(!isBackground) alert("Erro: O servidor da lista bloqueou todas as tentativas de ligação. Tenta usar um link direto (não encurtado) ou verifica se o link funciona no browser.");
-            }
-
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('hero-area').style.display = (channels.length === 0) ? 'flex' : 'none';
+        function toggleModal(show) {
+            document.getElementById('config-modal').style.display = show ? 'block' : 'none';
         }
 
-        function parseM3U(text) {
-            const lines = text.split(/\r?\n/);
-            const news = [];
-            let temp = {};
-            for (let line of lines) {
+        // JS para ler ficheiro local (Ignora CORS)
+        function loadFromFile(event) {
+            const reader = new FileReader();
+            reader.onload = (e) => processM3U(e.target.result);
+            reader.readAsText(event.target.files[0]);
+        }
+
+        // JS para ler URL (Usa Proxy)
+        async function loadFromUrl() {
+            const url = document.getElementById('m3u-url').value;
+            if (!url) return;
+            try {
+                const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxy);
+                const data = await response.json();
+                processM3U(data.contents);
+            } catch (err) {
+                alert("Erro ao carregar link. Tenta a opção de ficheiro.");
+            }
+        }
+
+        function processM3U(text) {
+            const lines = text.split('\n');
+            const channels = [];
+            let currentChannel = {};
+
+            lines.forEach(line => {
                 line = line.trim();
                 if (line.startsWith('#EXTINF')) {
-                    const logoMatch = line.match(/tvg-logo="([^"]*)"/);
-                    const groupMatch = line.match(/group-title="([^"]*)"/);
-                    temp = { 
-                        name: line.split(',')[1]?.trim() || "Canal",
-                        logo: logoMatch ? logoMatch[1] : "",
-                        group: groupMatch ? groupMatch[1] : "Geral"
+                    const name = line.split(',')[1];
+                    const logo = line.match(/tvg-logo="([^"]*)"/);
+                    const group = line.match(/group-title="([^"]*)"/);
+                    currentChannel = { 
+                        name: name, 
+                        logo: logo ? logo[1] : '', 
+                        group: group ? group[1] : 'Geral' 
                     };
                 } else if (line.startsWith('http')) {
-                    temp.url = line;
-                    news.push(temp);
-                    temp = {};
+                    currentChannel.url = line;
+                    channels.push(currentChannel);
                 }
-            }
-            channels = news;
-            localStorage.setItem('ns_url_channels', JSON.stringify(channels));
+            });
+
+            allChannels = channels;
+            localStorage.setItem('my_channels', JSON.stringify(allChannels));
+            render(allChannels);
+            toggleModal(false);
         }
 
-        function render() {
+        function render(data) {
             const container = document.getElementById('content');
             container.innerHTML = '';
-            const groups = {};
-            channels.forEach(c => {
-                if(!groups[c.group]) groups[c.group] = [];
-                groups[c.group].push(c);
-            });
-            for(let gName in groups) {
+            
+            const groups = data.reduce((acc, ch) => {
+                acc[ch.group] = acc[ch.group] || [];
+                acc[ch.group].push(ch);
+                return acc;
+            }, {});
+
+            for (const group in groups) {
                 const row = document.createElement('div');
                 row.className = 'row';
-                row.innerHTML = `<div class="row-title">${gName}</div>`;
+                row.innerHTML = `<div class="row-title">${group}</div>`;
+                
                 const carousel = document.createElement('div');
                 carousel.className = 'carousel';
-                groups[gName].forEach(c => {
-                    carousel.innerHTML += `
-                        <div class="card" onclick="location='intent:${c.url}#Intent;package=org.videolan.vlc;type=video/*;end'">
-                            ${c.logo ? `<img src="${c.logo}" class="card-img" onerror="this.src='';this.style.background='#111'">` : `<div class="card-img" style="background:#111"></div>`}
-                            <div class="card-overlay"><h3>${c.name}</h3></div>
-                        </div>`;
+                
+                groups[group].forEach(ch => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.onclick = () => window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
+                    card.innerHTML = `
+                        ${ch.logo ? `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/140x200?text=TV'">` : `<img src="https://via.placeholder.com/140x200?text=${ch.name}">`}
+                        <div class="card-info">${ch.name}</div>
+                    `;
+                    carousel.appendChild(card);
                 });
+                
                 row.appendChild(carousel);
                 container.appendChild(row);
             }
         }
 
-        function clearAll() { if(confirm("Apagar tudo?")) { localStorage.clear(); location.reload(); } }
+        function filterChannels() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
+            render(filtered);
+        }
     </script>
 </body>
 </html>
