@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#141414">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>StreamLine Red</title>
+    <title>N-Stream Link</title>
     
     <link rel="manifest" href="manifest.json">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -14,13 +14,12 @@
     
     <style>
         :root {
-            --bg: #141414; /* Preto Netflix */
+            --bg: #141414;
+            --primary: #E50914;
             --surface: #1f1f1f;
-            --primary: #E50914; /* Vermelho Netflix */
             --text: #ffffff;
-            --text-muted: #b3b3b3;
-            --card-w: 150px; /* Cartões ligeiramente mais estreitos e altos */
-            --card-h: 220px;
+            --card-w: 140px;
+            --card-h: 200px;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -29,72 +28,47 @@
             overflow-x: hidden; scroll-behavior: smooth;
         }
 
-        /* --- HEADER --- */
         header {
             position: fixed; top: 0; width: 100%; height: 70px;
-            /* Gradiente mais agressivo do topo para baixo */
             background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 4%; z-index: 1000; transition: 0.4s ease;
+            padding: 0 5%; z-index: 1000;
         }
-        header.scrolled { background: var(--bg); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        /* Logo Vermelho e Bold */
+        header.scrolled { background: var(--bg); }
         .logo { font-size: 1.8rem; font-weight: 900; color: var(--primary); letter-spacing: -1px; text-transform: uppercase; }
-        .header-icon { color: white; font-size: 1.4rem; cursor: pointer; }
-
-        /* --- HERO SECTION (CINEMÁTICO) --- */
+        
         .hero {
-            height: 65vh; width: 100%;
-            /* Imagem mais dramática com overlay escuro forte */
-            background: linear-gradient(to top, var(--bg) 10%, transparent 80%), linear-gradient(to bottom, rgba(0,0,0,0.6), transparent), url('https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?auto=format&fit=crop&w=1500&q=80');
-            background-size: cover; background-position: center 20%;
-            display: flex; flex-direction: column; justify-content: flex-end; padding: 0 4% 60px 4%;
+            height: 60vh; width: 100%;
+            background: linear-gradient(to top, var(--bg) 10%, transparent 80%), url('https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?auto=format&fit=crop&w=1500&q=80');
+            background-size: cover; background-position: center;
+            display: flex; flex-direction: column; justify-content: flex-end; padding: 0 5% 60px 5%;
         }
-        .hero h2 { font-size: 3rem; margin: 0; font-weight: 900; line-height: 1.1; max-width: 80%; }
-        .hero p { color: #eee; font-size: 1rem; margin: 15px 0 25px 0; font-weight: 600; }
-        .hero-btn {
-            background: var(--primary); color: white; border: none; padding: 12px 30px;
-            font-size: 1rem; font-weight: 800; border-radius: 4px; display: flex; align-items: center; gap: 10px; width: fit-content; cursor: pointer;
-        }
-        .hero-btn i { font-size: 1.2rem; }
 
-        /* --- CARROSSEL --- */
-        .row { margin: 35px 0; padding-left: 4%; }
-        .row-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 15px; color: #e5e5e5; }
-        .carousel { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; scrollbar-width: none; }
+        .row { margin: 30px 0; padding-left: 5%; }
+        .row-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 15px; text-transform: uppercase; color: #e5e5e5; }
+        
+        .carousel { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 10px; scrollbar-width: none; }
         .carousel::-webkit-scrollbar { display: none; }
 
-        /* --- NOVOS CARTÕES ESTILO POSTER --- */
         .card {
             flex: 0 0 var(--card-w); height: var(--card-h);
-            background: var(--surface); border-radius: 6px;
-            overflow: hidden; position: relative; transition: transform 0.3s; cursor: pointer;
+            background: #000; border-radius: 4px;
+            overflow: hidden; position: relative; transition: 0.3s; cursor: pointer;
         }
-        .card:active { transform: scale(0.97); }
-        
-        /* A imagem agora ocupa tudo */
-        .card-img-container { width: 100%; height: 100%; position: relative; }
-        .card-img { width: 100%; height: 100%; object-fit: contain; padding: 20px; background: #000; }
-        
-        /* Overlay Gradiente para o texto ser legível */
+        .card:active { transform: scale(0.95); }
+        .card-img { width: 100%; height: 100%; object-fit: contain; padding: 25px; }
         .card-overlay {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;
-            background: linear-gradient(to top, rgba(0,0,0,0.95) 20%, transparent);
-            display: flex; flex-direction: column; justify-content: flex-end;
-            padding: 10px;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 50%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            display: flex; align-items: flex-end; padding: 10px;
         }
+        .card h3 { font-size: 0.75rem; margin: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .card h3 { font-size: 0.9rem; margin: 0 0 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
-        .epg-info { font-size: 0.75rem; color: #ddd; display: block; height: 1.2em; overflow: hidden; margin-bottom: 6px; font-weight: 600; }
-        
-        /* Barras de progresso vermelhas e finas */
-        .prog-bg { width: 100%; height: 2px; background: rgba(255,255,255,0.3); }
-        .prog-fill { height: 100%; background: var(--primary); transition: 0.5s; }
-
-        /* --- MODAIS --- */
+        /* MODAL */
         #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; padding: 40px 25px; }
-        textarea, input { width: 100%; background: #333; color: #fff; border: 1px solid #444; padding: 15px; border-radius: 4px; margin: 10px 0; font-family: inherit; }
+        input { width: 100%; background: #333; color: #fff; border: 1px solid #444; padding: 15px; border-radius: 4px; margin: 10px 0; font-family: inherit; }
         .btn { width: 100%; padding: 15px; border-radius: 4px; border: none; font-weight: 800; cursor: pointer; margin-top: 15px; }
+        
         #loading { display: none; position: fixed; inset: 0; background: #141414; z-index: 4000; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
@@ -102,62 +76,43 @@
 
     <div id="loading">
         <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary); margin-bottom: 20px;"></i>
-        <span style="font-weight: 700; letter-spacing: 1px;">A CARREGAR TV...</span>
+        <span style="font-weight: 700;">A ATUALIZAR LISTA...</span>
     </div>
 
     <header id="header">
         <div class="logo">N-STREAM</div>
-        <i class="fas fa-sliders-h header-icon" onclick="openModal()"></i>
+        <i class="fas fa-cog" style="cursor:pointer" onclick="openModal()"></i>
     </header>
 
     <div id="hero-area" class="hero">
-        <h2>TV EM DIRETO SEM LIMITES.</h2>
-        <p>Todos os teus canais, num só lugar.</p>
-        <button class="hero-btn" onclick="scrollToContent()">
-            <i class="fas fa-play"></i> COMEÇAR A VER
-        </button>
+        <h2 style="font-size: 2.5rem; font-weight: 900;">A TUA LISTA.<br>SINCRO OTIMIZADA.</h2>
+        <button class="btn" style="background: var(--primary); color: white; width: fit-content; padding: 12px 30px;" onclick="openModal()">INSERIR LINK M3U</button>
     </div>
 
     <div id="content"></div>
 
     <div id="modal">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
-            <h2 style="font-weight: 900; letter-spacing: -1px;">CONFIGURAÇÃO</h2>
-            <i class="fas fa-times header-icon" onclick="closeModal()"></i>
-        </div>
+        <h2 style="font-weight: 900; margin-bottom: 20px;">DEFINIÇÕES</h2>
+        <label style="font-size: 0.8rem; color: #b3b3b3;">LINK DA LISTA (.m3u / .m3u8):</label>
+        <input type="text" id="m3uUrl" placeholder="http://servidor.com/lista.m3u">
         
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700;">LISTA M3U:</label>
-        <textarea id="m3uInput" rows="5" placeholder="Cola a tua lista aqui..."></textarea>
-        
-        <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700;">LINK EPG (XMLTV):</label>
-        <input type="text" id="epgUrl" placeholder="http://...">
-        
-        <button class="btn" style="background: var(--primary); color: white;" onclick="saveAndSync()">GUARDAR E SINCRONIZAR</button>
-        <button class="btn" style="background: transparent; border: 2px solid #444; color: white;" onclick="closeModal()">CANCELAR</button>
-        <button class="btn" style="background: #b90909; color: white; margin-top: 40px;" onclick="clearData()">APAGAR TUDO</button>
+        <button class="btn" style="background: var(--primary); color: white;" onclick="fetchAndSaveM3U()">SINCRONIZAR AGORA</button>
+        <button class="btn" style="background: transparent; border: 1px solid #444; color: white;" onclick="closeModal()">FECHAR</button>
+        <button class="btn" style="background: #b90909; color: white; margin-top: 50px;" onclick="clearAll()">APAGAR TUDO</button>
     </div>
 
     <script>
-        let channels = JSON.parse(localStorage.getItem('nt_channels')) || [];
-        let epgData = JSON.parse(localStorage.getItem('nt_epg')) || {};
-        // Link EPG padrão (o teu link)
-        const defaultEPG = "http://tv-283077.ifiesta.net:8080/xmltv.php?username=TV-15468553750873&password=126635770844";
+        let channels = JSON.parse(localStorage.getItem('ns_url_channels')) || [];
 
         window.onload = () => {
-            if(!localStorage.getItem('nt_epg_url')) {
-                document.getElementById('epgUrl').value = defaultEPG;
-            } else {
-                document.getElementById('epgUrl').value = localStorage.getItem('nt_epg_url');
+            const savedUrl = localStorage.getItem('ns_url_link');
+            if(savedUrl) {
+                document.getElementById('m3uUrl').value = savedUrl;
+                document.getElementById('hero-area').style.display = 'none';
+                // Se já houver canais guardados, mostra-os, mas tenta atualizar em background
+                if(channels.length > 0) render();
+                fetchAndSaveM3U(true);
             }
-            
-            if(channels.length > 0) {
-                 document.getElementById('hero-area').style.display = 'none';
-                 // Sincroniza EPG em background ao iniciar
-                 autoSyncEPG();
-            } else {
-                 document.getElementById('hero-area').style.display = 'flex';
-            }
-            render();
         };
 
         window.onscroll = () => {
@@ -166,43 +121,31 @@
 
         function openModal() { document.getElementById('modal').style.display = 'block'; }
         function closeModal() { document.getElementById('modal').style.display = 'none'; }
-        function scrollToContent() { 
-            if(channels.length > 0) document.getElementById('content').scrollIntoView({behavior: 'smooth'});
-            else openModal();
-        }
 
-        async function saveAndSync() {
-            const m3u = document.getElementById('m3uInput').value;
-            const epgUrl = document.getElementById('epgUrl').value;
-            
-            if(m3u) parseM3U(m3u);
-            if(epgUrl) {
-                localStorage.setItem('nt_epg_url', epgUrl);
-                await fetchEPG(epgUrl);
-            }
-            closeModal();
-            document.getElementById('hero-area').style.display = 'none';
-            render();
-        }
+        async function fetchAndSaveM3U(isBackground = false) {
+            const url = document.getElementById('m3uUrl').value;
+            if(!url) return;
 
-        async function autoSyncEPG() {
-            const url = localStorage.getItem('nt_epg_url') || defaultEPG;
-            // Não bloqueia o ecrã, faz em background
-            fetchEPG(url, true);
-        }
+            if(!isBackground) document.getElementById('loading').style.display = 'flex';
 
-        async function fetchEPG(url, background = false) {
-            if(!background) document.getElementById('loading').style.display = 'flex';
             try {
-                const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                const res = await fetch(proxy);
-                const data = await res.json();
-                if(data.contents) parseEPG(data.contents);
+                // Usamos o Proxy para evitar bloqueio CORS
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                
+                if (data.contents) {
+                    parseM3U(data.contents);
+                    localStorage.setItem('ns_url_link', url);
+                    render();
+                }
             } catch (e) {
-                console.error("Erro EPG:", e);
+                if(!isBackground) alert("Erro ao carregar a lista. Verifica o link.");
+                console.error(e);
             } finally {
-                if(!background) document.getElementById('loading').style.display = 'none';
-                render();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('hero-area').style.display = (channels.length === 0) ? 'flex' : 'none';
+                closeModal();
             }
         }
 
@@ -210,46 +153,25 @@
             const lines = text.split('\n');
             const news = [];
             let temp = {};
+            
             lines.forEach(l => {
                 if(l.startsWith('#EXTINF')) {
-                    const id = l.match(/tvg-id="([^"]*)"/);
                     const logo = l.match(/tvg-logo="([^"]*)"/);
                     const group = l.match(/group-title="([^"]*)"/);
                     temp = { 
-                        id: id ? id[1] : "", 
                         name: l.split(',')[1]?.trim() || "Canal",
                         logo: logo ? logo[1] : "",
                         group: group ? group[1] : "Geral"
                     };
                 } else if(l.startsWith('http')) {
-                    temp.url = l.trim(); news.push(temp); temp = {};
+                    temp.url = l.trim();
+                    news.push(temp);
+                    temp = {};
                 }
             });
+            
             channels = news;
-            localStorage.setItem('nt_channels', JSON.stringify(channels));
-        }
-
-        function parseEPG(xmlText) {
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(xmlText, "text/xml");
-            const progs = xml.getElementsByTagName('programme');
-            const newEpg = {};
-            for(let p of progs) {
-                const cid = p.getAttribute('channel');
-                if(!newEpg[cid]) newEpg[cid] = [];
-                newEpg[cid].push({
-                    start: parseT(p.getAttribute('start')),
-                    stop: parseT(p.getAttribute('stop')),
-                    title: p.getElementsByTagName('title')[0]?.textContent || "Programação"
-                });
-            }
-            epgData = newEpg;
-            localStorage.setItem('nt_epg', JSON.stringify(epgData));
-        }
-
-        function parseT(t) {
-            if(!t) return 0;
-            return new Date(t.substring(0,4), t.substring(4,6)-1, t.substring(6,8), t.substring(8,10), t.substring(10,12)).getTime();
+            localStorage.setItem('ns_url_channels', JSON.stringify(channels));
         }
 
         function render() {
@@ -270,25 +192,11 @@
                 carousel.className = 'carousel';
                 
                 groups[gName].forEach(c => {
-                    const now = Date.now();
-                    const schedule = epgData[c.id] || [];
-                    const current = schedule.find(p => now >= p.start && now <= p.stop);
-                    let title = "", progress = 0;
-                    if(current) {
-                        title = current.title;
-                        progress = ((now - current.start) / (current.stop - current.start)) * 100;
-                    }
-                    
-                    // NOVA ESTRUTURA DO CARTÃO (Overlay)
                     carousel.innerHTML += `
                         <div class="card" onclick="location='intent:${c.url}#Intent;package=org.videolan.vlc;type=video/*;end'">
-                            <div class="card-img-container">
-                                ${c.logo ? `<img src="${c.logo}" class="card-img" onerror="this.src='';this.style.display='none'">` : ``}
-                                <div class="card-overlay">
-                                    <h3>${c.name}</h3>
-                                    ${title ? `<span class="epg-info">${title}</span>` : ''}
-                                    ${progress > 0 ? `<div class="prog-bg"><div class="prog-fill" style="width:${progress}%"></div></div>` : ''}
-                                </div>
+                            ${c.logo ? `<img src="${c.logo}" class="card-img" onerror="this.src='';this.style.background='#111'">` : `<div class="card-img" style="background:#111"></div>`}
+                            <div class="card-overlay">
+                                <h3>${c.name}</h3>
                             </div>
                         </div>`;
                 });
@@ -297,7 +205,7 @@
             }
         }
 
-        function clearData() { if(confirm("Tens a certeza? Isto apaga a lista e o guia.")) { localStorage.clear(); location.reload(); } }
+        function clearAll() { if(confirm("Remover link e canais?")) { localStorage.clear(); location.reload(); } }
     </script>
 </body>
 </html>
