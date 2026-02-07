@@ -4,31 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#000000">
-    <title>N-STREAM | Cinema Edition</title>
+    <title>StreamLine</title>
+    
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png">
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        :root { --accent: #E50914; --bg: #000000; --surface: #111111; --text-main: #ffffff; --text-dim: #a3a3a3; }
+        :root { --accent: #E50914; --bg: #000000; --surface: #111111; --text-main: #ffffff; }
         
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); overflow-x: hidden; }
 
-        /* HEADER MINIMALISTA */
+        /* --- SPLASH SCREEN (Logo a pulsar) --- */
+        #splash-screen {
+            position: fixed; inset: 0; background-color: #000000; z-index: 5000;
+            display: flex; justify-content: center; align-items: center;
+            animation: finishSplash 1s ease 2.5s forwards; /* Dura 2.5s */
+        }
+        
+        .splash-logo {
+            width: 180px; /* Tamanho do logo na abertura */
+            animation: pulse 2s infinite;
+        }
+
+        /* --- HEADER --- */
         header { 
             position: fixed; top: 0; width: 100%; height: 80px; 
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
             display: flex; align-items: center; justify-content: space-between; padding: 0 6%; z-index: 2000;
             transition: background 0.3s;
         }
         header.scrolled { background: var(--bg); border-bottom: 1px solid #222; }
-        .logo { color: var(--accent); font-weight: 900; font-size: 1.6rem; letter-spacing: -1.5px; text-transform: uppercase; }
-        .nav-icons { display: flex; gap: 20px; font-size: 1.3rem; }
-        .nav-icons i { cursor: pointer; transition: 0.2s; color: var(--text-dim); }
-        .nav-icons i:hover { color: var(--text-main); transform: scale(1.1); }
+        
+        /* Logo no menu (Canto esquerdo) */
+        .brand-logo { 
+            height: 45px; /* Altura ajustada para o menu */
+            width: auto; 
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px rgba(0,0,0,0.5)); /* Sombra subtil para destacar */
+        }
 
-        /* HERO SECTION IMERSIVA */
+        .nav-icons { display: flex; gap: 20px; font-size: 1.3rem; }
+        .nav-icons i { cursor: pointer; transition: 0.2s; color: #a3a3a3; }
+        .nav-icons i:hover { color: white; transform: scale(1.1); }
+
+        /* HERO SECTION */
         #hero-featured {
             height: 80vh; position: relative; display: none; align-items: flex-end; padding: 0 6% 80px 6%;
             background-size: cover; background-position: center;
@@ -41,12 +63,12 @@
         .hero-content { position: relative; z-index: 10; max-width: 700px; animation: fadeInUp 1s ease; }
         .hero-title { font-size: clamp(2.5rem, 8vw, 4.5rem); font-weight: 900; margin: 10px 0 25px 0; line-height: 0.95; letter-spacing: -2px; }
         .btn-play { 
-            background: var(--text-main); color: var(--bg); padding: 14px 40px; border: none; border-radius: 4px; 
+            background: white; color: black; padding: 14px 40px; border: none; border-radius: 4px; 
             font-weight: 800; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.3s;
         }
-        .btn-play:hover { background: var(--accent); color: white; transform: scale(1.05); }
+        .btn-play:hover { transform: scale(1.05); background: var(--accent); color: white; }
 
-        /* GRELHA DE CANAIS */
+        /* LISTA DE CANAIS */
         .content { padding-top: 20px; position: relative; z-index: 100; margin-top: -50px; }
         .row { margin-bottom: 45px; padding-left: 6%; opacity: 0; animation: fadeInUp 0.8s forwards; }
         .row-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 18px; color: #f5f5f5; letter-spacing: -0.5px; }
@@ -60,7 +82,7 @@
             border: 1px solid rgba(255,255,255,0.03);
         }
         .card:hover { transform: scale(1.08) translateY(-5px); border-color: rgba(255,255,255,0.2); z-index: 10; box-shadow: 0 15px 30px rgba(0,0,0,0.8); }
-        .card img { width: 80%; height: 80%; object-fit: contain; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3)); }
+        .card img { width: 80%; height: 80%; object-fit: contain; }
         .card-info { 
             position: absolute; bottom: 0; width: 100%; padding: 20px 10px 10px; 
             background: linear-gradient(transparent, rgba(0,0,0,0.95)); 
@@ -68,33 +90,34 @@
         }
         .card:hover .card-info { opacity: 1; }
 
-        /* OVERLAY DE PESQUISA */
+        /* SEARCH OVERLAY */
         #search-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 3000;
             display: none; flex-direction: column; align-items: center; padding-top: 100px;
         }
         .search-input-wrap { width: 80%; max-width: 600px; position: relative; }
-        .search-input-wrap input { 
-            width: 100%; background: transparent; border: none; border-bottom: 2px solid #333;
-            color: white; font-size: 2rem; padding: 10px; outline: none; transition: 0.3s;
-        }
-        .search-input-wrap input:focus { border-color: var(--accent); }
-
+        .search-input-wrap input { width: 100%; background: transparent; border: none; border-bottom: 2px solid #333; color: white; font-size: 2rem; padding: 10px; outline: none; }
+        
         /* MODAL */
-        #config-modal { 
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px);
-            z-index: 4000; justify-content: center; align-items: center;
-        }
+        #config-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 4000; justify-content: center; align-items: center; }
         .modal-content { background: #111; padding: 50px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #222; }
-        .btn-main { background: var(--accent); color: white; padding: 16px; border: none; border-radius: 6px; font-weight: 900; cursor: pointer; width: 100%; margin: 10px 0; font-size: 1rem; }
+        .btn-main { background: var(--accent); color: white; padding: 16px; border: none; border-radius: 6px; font-weight: 900; width: 100%; margin: 10px 0; cursor: pointer; }
+        input[type="text"] { background: #000; color: white; border: 1px solid #333; padding: 12px; width: 100%; border-radius: 4px; }
 
+        @keyframes finishSplash { 99% { opacity: 0; z-index: 5000; } 100% { opacity: 0; z-index: -1; visibility: hidden; } }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
+    <div id="splash-screen">
+        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo" alt="Carregando...">
+    </div>
+
     <header id="main-header">
-        <div class="logo">N-STREAM</div>
+        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="brand-logo" alt="StreamLine">
+        
         <div class="nav-icons">
             <i class="fas fa-search" onclick="toggleSearch(true)"></i>
             <i class="fas fa-cog" onclick="toggleModal(true)"></i>
@@ -112,24 +135,27 @@
 
     <div id="search-overlay">
         <div class="search-input-wrap">
-            <input type="text" id="search-field" placeholder="O que deseja ver?" oninput="filterChannels()">
-            <i class="fas fa-times" onclick="toggleSearch(false)" style="position:absolute; right:10px; top:20px; cursor:pointer; font-size:1.5rem"></i>
+            <input type="text" id="search-field" placeholder="O que queres ver?" oninput="filterChannels()">
+            <i class="fas fa-times" onclick="toggleSearch(false)" style="position:absolute; right:10px; top:20px; cursor:pointer; font-size:1.5rem; color: white;"></i>
         </div>
         <div id="search-results" class="content" style="width:100%; margin-top:20px;"></div>
     </div>
 
     <div id="config-modal">
         <div class="modal-content">
-            <h2 style="font-size: 2rem; margin-bottom: 10px; letter-spacing: -1px;">LISTA</h2>
-            <button class="btn-main" onclick="document.getElementById('file-input').click()">IMPORTAR FICHEIRO .M3U</button>
+            <h2 style="font-size: 1.8rem; margin-bottom: 20px;">CONFIGURAÇÃO</h2>
+            
+            <button class="btn-main" onclick="document.getElementById('file-input').click()">
+                <i class="fas fa-folder-open" style="margin-right:10px"></i> IMPORTAR FICHEIRO
+            </button>
             <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
             
-            <div style="margin: 20px 0; color: #444; font-weight: 800;">OU</div>
+            <div style="margin: 20px 0; color: #444; font-weight:bold;">OU VIA LINK</div>
             
-            <input type="text" id="m3u-url" placeholder="URL da lista HTTPS" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:white; border-radius:4px;">
-            <button class="btn-main" style="background:#222; margin-top:15px" onclick="loadFromUrl()">CARREGAR VIA LINK</button>
+            <input type="text" id="m3u-url" placeholder="https://...">
+            <button class="btn-main" style="background:#222; margin-top:10px" onclick="loadFromUrl()">CARREGAR LINK</button>
             
-            <p id="close-btn" style="cursor:pointer; color:#666; margin-top:30px; font-weight:700" onclick="toggleModal(false)">VOLTAR</p>
+            <p id="close-btn" style="cursor:pointer; color:#666; margin-top:30px; font-weight:bold;" onclick="toggleModal(false)">VOLTAR</p>
         </div>
     </div>
 
