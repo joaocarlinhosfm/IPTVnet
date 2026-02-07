@@ -3,97 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#141414">
-    <title>N-STREAM | Premium</title>
+    <meta name="theme-color" content="#000000">
+    <title>N-STREAM | Cinema Edition</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        :root { --red: #E50914; --black: #141414; --dark-gray: #1f1f1f; }
-        body { margin: 0; font-family: 'Montserrat', sans-serif; background: var(--black); color: white; overflow-x: hidden; }
+        :root { --accent: #E50914; --bg: #000000; --surface: #111111; --text-main: #ffffff; --text-dim: #a3a3a3; }
         
-        /* Navbar Glassmorphism */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); overflow-x: hidden; }
+
+        /* HEADER MINIMALISTA */
         header { 
-            position: fixed; top: 0; width: 100%; height: 70px; 
-            background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 4%; z-index: 2000;
+            position: fixed; top: 0; width: 100%; height: 80px; 
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 6%; z-index: 2000;
+            transition: background 0.3s;
         }
-        .logo { color: var(--red); font-weight: 900; font-size: 1.5rem; letter-spacing: -1px; }
-        .search-box {
-            background: rgba(255,255,255,0.1); border: 1px solid transparent; color: white;
-            padding: 10px 20px; border-radius: 30px; width: 35%; transition: 0.4s;
-        }
-        .search-box:focus { width: 55%; outline: none; border-color: var(--red); background: rgba(0,0,0,0.5); }
+        header.scrolled { background: var(--bg); border-bottom: 1px solid #222; }
+        .logo { color: var(--accent); font-weight: 900; font-size: 1.6rem; letter-spacing: -1.5px; text-transform: uppercase; }
+        .nav-icons { display: flex; gap: 20px; font-size: 1.3rem; }
+        .nav-icons i { cursor: pointer; transition: 0.2s; color: var(--text-dim); }
+        .nav-icons i:hover { color: var(--text-main); transform: scale(1.1); }
 
-        /* Hero Section */
+        /* HERO SECTION IMERSIVA */
         #hero-featured {
-            height: 60vh; position: relative; display: none; align-items: flex-end; padding: 0 4% 60px 4%;
-            background: linear-gradient(to top, var(--black) 10%, transparent 90%),
-                        linear-gradient(to right, rgba(0,0,0,0.8) 30%, transparent),
-                        url('https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=1920&q=80') center/cover;
+            height: 80vh; position: relative; display: none; align-items: flex-end; padding: 0 6% 80px 6%;
+            background-size: cover; background-position: center;
         }
-        .hero-title { font-size: 3rem; font-weight: 900; margin: 0 0 20px 0; text-transform: uppercase; }
-        .btn-play { background: var(--red); color: white; padding: 12px 35px; border: none; border-radius: 4px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        #hero-featured::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(to top, var(--bg) 15%, transparent 70%),
+                        linear-gradient(to right, rgba(0,0,0,0.9) 20%, transparent 80%);
+        }
+        .hero-content { position: relative; z-index: 10; max-width: 700px; animation: fadeInUp 1s ease; }
+        .hero-title { font-size: clamp(2.5rem, 8vw, 4.5rem); font-weight: 900; margin: 10px 0 25px 0; line-height: 0.95; letter-spacing: -2px; }
+        .btn-play { 
+            background: var(--text-main); color: var(--bg); padding: 14px 40px; border: none; border-radius: 4px; 
+            font-weight: 800; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.3s;
+        }
+        .btn-play:hover { background: var(--accent); color: white; transform: scale(1.05); }
 
-        /* Grelha de Canais */
-        .content { padding-top: 20px; padding-bottom: 50px; }
-        .row { margin-bottom: 40px; padding-left: 4%; opacity: 0; animation: fadeUp 0.8s ease forwards; }
-        .row-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 15px; color: #e5e5e5; }
-        .carousel { display: flex; overflow-x: auto; gap: 12px; scrollbar-width: none; padding: 10px 0 20px 0; }
+        /* GRELHA DE CANAIS */
+        .content { padding-top: 20px; position: relative; z-index: 100; margin-top: -50px; }
+        .row { margin-bottom: 45px; padding-left: 6%; opacity: 0; animation: fadeInUp 0.8s forwards; }
+        .row-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 18px; color: #f5f5f5; letter-spacing: -0.5px; }
+        .carousel { display: flex; overflow-x: auto; gap: 15px; scrollbar-width: none; padding-bottom: 15px; }
         .carousel::-webkit-scrollbar { display: none; }
 
         .card { 
-            flex: 0 0 150px; height: 220px; background: #0a0a0a; border-radius: 8px; 
-            position: relative; cursor: pointer; transition: 0.4s; border: 1px solid transparent;
+            flex: 0 0 160px; height: 230px; background: var(--surface); border-radius: 10px; 
+            position: relative; cursor: pointer; transition: all 0.4s cubic-bezier(0.2, 1, 0.3, 1);
             display: flex; justify-content: center; align-items: center; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.03);
         }
-        .card:hover { transform: scale(1.1); z-index: 10; border-color: var(--red); box-shadow: 0 10px 25px rgba(229, 9, 20, 0.4); }
-        .card img { width: 85%; height: 85%; object-fit: contain; }
-        .card-info { position: absolute; bottom: 0; width: 100%; padding: 15px 10px; background: linear-gradient(to top, #000, transparent); font-size: 0.8rem; font-weight: 700; text-align: center; }
+        .card:hover { transform: scale(1.08) translateY(-5px); border-color: rgba(255,255,255,0.2); z-index: 10; box-shadow: 0 15px 30px rgba(0,0,0,0.8); }
+        .card img { width: 80%; height: 80%; object-fit: contain; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3)); }
+        .card-info { 
+            position: absolute; bottom: 0; width: 100%; padding: 20px 10px 10px; 
+            background: linear-gradient(transparent, rgba(0,0,0,0.95)); 
+            font-size: 0.85rem; font-weight: 700; text-align: center; opacity: 0; transition: 0.3s;
+        }
+        .card:hover .card-info { opacity: 1; }
 
-        /* Modal de Configuração */
+        /* OVERLAY DE PESQUISA */
+        #search-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 3000;
+            display: none; flex-direction: column; align-items: center; padding-top: 100px;
+        }
+        .search-input-wrap { width: 80%; max-width: 600px; position: relative; }
+        .search-input-wrap input { 
+            width: 100%; background: transparent; border: none; border-bottom: 2px solid #333;
+            color: white; font-size: 2rem; padding: 10px; outline: none; transition: 0.3s;
+        }
+        .search-input-wrap input:focus { border-color: var(--accent); }
+
+        /* MODAL */
         #config-modal { 
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
-            z-index: 3000; justify-content: center; align-items: center;
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px);
+            z-index: 4000; justify-content: center; align-items: center;
         }
-        .modal-content { background: var(--dark-gray); padding: 40px; border-radius: 12px; width: 90%; max-width: 450px; text-align: center; border: 1px solid #333; }
-        .btn { background: var(--red); color: white; padding: 15px; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; width: 100%; margin: 10px 0; }
-        input[type="text"] { width: 100%; padding: 12px; margin: 15px 0; border-radius: 6px; border: 1px solid #444; background: #111; color: white; }
+        .modal-content { background: #111; padding: 50px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #222; }
+        .btn-main { background: var(--accent); color: white; padding: 16px; border: none; border-radius: 6px; font-weight: 900; cursor: pointer; width: 100%; margin: 10px 0; font-size: 1rem; }
 
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <header>
+    <header id="main-header">
         <div class="logo">N-STREAM</div>
-        <input type="text" id="search" class="search-box" placeholder="Pesquisar canal..." oninput="filterChannels()">
-        <i class="fas fa-cog" onclick="toggleModal(true)" style="cursor:pointer; font-size: 1.4rem;"></i>
+        <div class="nav-icons">
+            <i class="fas fa-search" onclick="toggleSearch(true)"></i>
+            <i class="fas fa-cog" onclick="toggleModal(true)"></i>
+        </div>
     </header>
 
     <div id="hero-featured">
         <div class="hero-content">
-            <span style="color:var(--red); font-weight:800;">DESTAQUE</span>
             <h1 class="hero-title" id="hero-name">---</h1>
-            <button class="btn-play" id="hero-play"><i class="fas fa-play"></i> VER AGORA</button>
+            <button class="btn-play" id="hero-play"><i class="fas fa-play"></i> REPRODUZIR</button>
         </div>
     </div>
 
     <div id="content" class="content"></div>
 
+    <div id="search-overlay">
+        <div class="search-input-wrap">
+            <input type="text" id="search-field" placeholder="O que deseja ver?" oninput="filterChannels()">
+            <i class="fas fa-times" onclick="toggleSearch(false)" style="position:absolute; right:10px; top:20px; cursor:pointer; font-size:1.5rem"></i>
+        </div>
+        <div id="search-results" class="content" style="width:100%; margin-top:20px;"></div>
+    </div>
+
     <div id="config-modal">
         <div class="modal-content">
-            <h2 style="margin-top:0">CONFIGURAÇÃO</h2>
-            <button class="btn" onclick="document.getElementById('file-input').click()">CARREGAR FICHEIRO .M3U</button>
+            <h2 style="font-size: 2rem; margin-bottom: 10px; letter-spacing: -1px;">LISTA</h2>
+            <button class="btn-main" onclick="document.getElementById('file-input').click()">IMPORTAR FICHEIRO .M3U</button>
             <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
             
-            <p style="color:#666; font-size:0.8rem">OU INSIRA UM LINK</p>
-            <input type="text" id="m3u-url" placeholder="https://site.com/lista.m3u">
-            <button class="btn" style="background:#444" onclick="loadFromUrl()">SINCRONIZAR LINK</button>
+            <div style="margin: 20px 0; color: #444; font-weight: 800;">OU</div>
             
-            <p id="close-btn" style="cursor:pointer; color:#888; margin-top:20px" onclick="toggleModal(false)">Fechar</p>
+            <input type="text" id="m3u-url" placeholder="URL da lista HTTPS" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:white; border-radius:4px;">
+            <button class="btn-main" style="background:#222; margin-top:15px" onclick="loadFromUrl()">CARREGAR VIA LINK</button>
+            
+            <p id="close-btn" style="cursor:pointer; color:#666; margin-top:30px; font-weight:700" onclick="toggleModal(false)">VOLTAR</p>
         </div>
     </div>
 
