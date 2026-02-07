@@ -1,5 +1,5 @@
 /**
- * N-STREAM - Core Engine (HTTPS Optimized)
+ * N-STREAM - Core Engine (VLC Bypass Edition)
  */
 
 let allChannels = JSON.parse(localStorage.getItem('my_channels')) || [];
@@ -7,62 +7,44 @@ let allChannels = JSON.parse(localStorage.getItem('my_channels')) || [];
 window.onload = () => {
     if (allChannels.length === 0) {
         toggleModal(true);
-        const closeBtn = document.getElementById('close-btn');
-        if (closeBtn) closeBtn.style.display = 'none';
+        if (document.getElementById('close-btn')) document.getElementById('close-btn').style.display = 'none';
     } else {
         renderApp(allChannels);
     }
 };
 
-// Controle de UI do Modal
 function toggleModal(show) {
     const modal = document.getElementById('config-modal');
     if (modal) modal.style.display = show ? 'flex' : 'none';
 }
 
-/**
- * 1. CARREGAMENTO VIA URL
- * Agora com validação estrita de HTTPS e tratamento de erro detalhado.
- */
+// 1. CARREGAMENTO VIA URL (Com Proxy para evitar CORS)
 async function loadFromUrl() {
-    const urlField = document.getElementById('m3u-url');
-    const url = urlField.value.trim();
-
-    // 1. Verifica se é HTTPS
-    if (!url.startsWith('https://')) {
-        alert("Erro de Segurança: Apenas links HTTPS são permitidos para garantir a compatibilidade com o GitHub Pages.");
-        return;
-    }
+    const url = document.getElementById('m3u-url').value.trim();
+    if (!url) return;
 
     toggleModal(false);
-    console.log("A tentar carregar lista HTTPS via Proxy...");
-
-    // Usamos o AllOrigins, que é mais estável para links HTTPS complexos
+    
+    // AllOrigins permite-nos ler o conteúdo de qualquer URL como texto
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
 
     try {
         const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error("Falha na rede");
-        
         const data = await response.json();
-        const content = data.contents; // O AllOrigins encapsula o texto em .contents
+        const content = data.contents; 
 
         if (content && content.includes("#EXTM3U")) {
             processM3U(content);
         } else {
-            throw new Error("O ficheiro não parece ser uma lista M3U válida ou o servidor bloqueou o acesso.");
+            throw new Error("Conteúdo Inválido");
         }
     } catch (err) {
-        console.error("Erro no carregamento:", err);
-        alert("Não foi possível ler a lista. Motivo: O servidor da lista bloqueia pedidos externos (CORS). Use a opção 'IMPORTAR FICHEIRO' para contornar isto.");
+        alert("O servidor da lista bloqueou a leitura automática. \n\nSolução: Faz download do ficheiro .m3u no teu browser e usa o botão 'IMPORTAR FICHEIRO'.");
         toggleModal(true);
     }
 }
 
-/**
- * 2. PROCESSAMENTO DA LISTA
- * Filtra automaticamente apenas canais que usem HTTPS.
- */
+// 2. PROCESSAMENTO DA LISTA (Aceita HTTP e HTTPS)
 function processM3U(text) {
     const lines = text.split(/\r?\n/);
     const channels = [];
@@ -82,32 +64,27 @@ function processM3U(text) {
                 logo: logo ? logo[1] : '', 
                 group: group ? group[1] : 'Canais' 
             };
-        } else if (line.startsWith('https://')) { 
-            // IGNRORA HTTP: Só aceita links de stream que comecem por https://
+        } 
+        // ACEITA QUALQUER LINK QUE COMECE COM HTTP (inclui https)
+        else if (line.toLowerCase().startsWith('http')) { 
             if (current) {
                 current.url = line;
                 channels.push(current);
                 current = null;
             }
-        } else if (line.startsWith('http://')) {
-            // Ignora explicitamente links inseguros para evitar erro de Mixed Content
-            current = null;
         }
     });
 
     if (channels.length > 0) {
         localStorage.setItem('my_channels', JSON.stringify(channels));
-        console.log(`${channels.length} canais HTTPS importados com sucesso.`);
         location.reload();
     } else {
-        alert("A lista foi lida, mas não continha nenhum link HTTPS válido.");
+        alert("Não foram encontrados links de vídeo na lista.");
         toggleModal(true);
     }
 }
 
-/**
- * 3. IMPORTAÇÃO DE FICHEIRO (Bypass total de CORS)
- */
+// 3. IMPORTAÇÃO DE FICHEIRO
 function loadFromFile(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -116,5 +93,61 @@ function loadFromFile(event) {
     reader.readAsText(file);
 }
 
-// Restantes funções de renderização (renderApp, setupHero, filterChannels) 
-// mantêm-se como na versão anterior.
+// 4. RENDERIZAÇÃO
+function renderApp(data, targetContainer = "content") {
+    const container = document.getElementById(targetContainer);
+    if (!container) return;
+    container.innerHTML = '';
+
+    if(targetContainer === "content") setupHero(data);
+
+    const groups = data.reduce((acc, ch) => {
+        const groupName = ch.group || 'Geral';
+        acc[groupName] = acc[groupName] || [];
+        acc[groupName].push(ch);
+        return acc;
+    }, {});
+
+    Object.keys(groups).sort().forEach((group, idx) => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.style.animationDelay = `${idx * 0.1}s`;
+        row.innerHTML = `<div class="row-title">${group}</div>`;
+        
+        const carousel = document.createElement('div');
+        carousel.className = 'carousel';
+
+        groups[group].forEach(ch => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            // O segredo está aqui: enviamos o link original (seja http ou https) para o VLC
+            card.onclick = () => {
+                window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
+            };
+            
+            const logo = ch.logo ? `<img src="${ch.logo}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
+            card.innerHTML = `${logo}<i class="fas fa-play" style="display:${ch.logo ? 'none' : 'flex'}; font-size:2rem; color:#222"></i><div class="card-info">${ch.name}</div>`;
+            carousel.appendChild(card);
+        });
+
+        row.appendChild(carousel);
+        container.appendChild(row);
+    });
+}
+
+function setupHero(data) {
+    const hero = document.getElementById('hero-featured');
+    if (!hero) return;
+    const random = data[Math.floor(Math.random() * data.length)];
+    document.getElementById('hero-name').innerText = random.name;
+    document.getElementById('hero-play').onclick = () => {
+        window.location.href = `intent:${random.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
+    };
+    hero.style.display = 'flex';
+}
+
+function filterChannels() {
+    const query = document.getElementById('search-field').value.toLowerCase();
+    const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
+    renderApp(filtered, "search-results");
+}
