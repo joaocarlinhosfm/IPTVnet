@@ -5,17 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StreamLine IPTV</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="splash-screen">
-        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo" alt="Logo">
+        <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="splash-logo" alt="Logo">
     </div>
 
     <header>
-        <img src="https://i.ibb.co/7tqXSSFB/unnamed-Photoroom.png" class="brand-logo" alt="Logo">
+        <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="brand-logo" alt="Logo">
         <div class="header-right">
             <input type="text" id="search-field" class="search-bar" placeholder="Pesquisar..." oninput="filterChannels()">
             <i class="fas fa-cog" onclick="toggleModal(true)"></i>
@@ -26,7 +25,7 @@
         <section id="hero-featured">
             <div class="hero-content">
                 <h1 id="hero-name" class="hero-title">A carregar...</h1>
-                <button id="hero-play" class="btn-play"><i class="fas fa-play"></i> REPRODUZIR</button>
+                <button id="hero-play" class="btn-play"><i class="fas fa-play"></i> REPRODUZIR NO VLC</button>
             </div>
         </section>
 
@@ -38,20 +37,10 @@
             <h2>Configuração M3U</h2>
             <input type="text" id="m3u-url" placeholder="URL da lista .m3u">
             <button class="btn-main" onclick="loadFromUrl()">CARREGAR LINK</button>
-            <p>ou</p>
+            <p style="margin: 10px 0; color: #666;">ou</p>
             <input type="file" id="m3u-file" hidden onchange="loadFromFile(event)">
             <button class="btn-main" style="background:#333" onclick="document.getElementById('m3u-file').click()">ABRIR FICHEIRO</button>
             <button class="btn-main" style="background:transparent; color:#888" onclick="toggleModal(false)">FECHAR</button>
-        </div>
-    </div>
-
-    <div id="web-player-modal">
-        <div class="player-header">
-            <span id="player-channel-name">Canal</span>
-            <button onclick="closeWebPlayer()" class="close-player-btn">FECHAR <i class="fas fa-times"></i></button>
-        </div>
-        <div class="video-container">
-            <video id="stream-video" controls autoplay></video>
         </div>
     </div>
 
