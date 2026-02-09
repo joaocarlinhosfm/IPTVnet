@@ -2,66 +2,56 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#000000">
-    <title>StreamLine</title>
-    
-    <link rel="manifest" href="manifest.json">
-    
-    <link rel="icon" type="image/png" href="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png">
-    <link rel="apple-touch-icon" href="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamLine IPTV</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="splash-screen">
-        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo" alt="A carregar...">
+        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo" alt="Logo">
     </div>
 
     <header>
-        <img src="https://i.ibb.co/fzwG7RvD/S-recortado.png" class="brand-logo" alt="StreamLine">
+        <img src="https://i.ibb.co/7tqXSSFB/unnamed-Photoroom.png" class="brand-logo" alt="Logo">
         <div class="header-right">
             <input type="text" id="search-field" class="search-bar" placeholder="Pesquisar..." oninput="filterChannels()">
-            <i class="fas fa-cog" onclick="toggleModal(true)" title="Configurações"></i>
+            <i class="fas fa-cog" onclick="toggleModal(true)"></i>
         </div>
     </header>
 
-    <div class="content">
-        <div id="hero-featured">
+    <main class="content">
+        <section id="hero-featured">
             <div class="hero-content">
-                <h1 class="hero-title" id="hero-name">Carregando...</h1>
-                <button class="btn-play" id="hero-play">
-                    <i class="fas fa-play"></i> REPRODUZIR
-                </button>
+                <h1 id="hero-name" class="hero-title">A carregar...</h1>
+                <button id="hero-play" class="btn-play"><i class="fas fa-play"></i> REPRODUZIR</button>
             </div>
-        </div>
-        
+        </section>
+
         <div id="main-content"></div>
-    </div>
+    </main>
 
     <div id="config-modal">
         <div class="modal-content">
-            <h2>Gestão de Lista</h2>
-            
-            <button class="btn-main" onclick="document.getElementById('file-input').click()">
-                <i class="fas fa-folder-open"></i> IMPORTAR FICHEIRO .M3U
-            </button>
-            <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
-            
-            <div style="margin: 20px 0; font-size: 0.9rem; color: #666;">OU CARREGAR LINK</div>
-            
-            <input type="text" id="m3u-url" placeholder="https://exemplo.com/lista.m3u">
-            <button class="btn-main" style="background:#333; margin-top:15px;" onclick="loadFromUrl()">
-                <i class="fas fa-cloud-download-alt"></i> CARREGAR URL
-            </button>
-            
-            <p onclick="toggleModal(false)" style="cursor:pointer; color:#666; margin-top:25px; font-weight:600">FECHAR</p>
+            <h2>Configuração M3U</h2>
+            <input type="text" id="m3u-url" placeholder="URL da lista .m3u">
+            <button class="btn-main" onclick="loadFromUrl()">CARREGAR LINK</button>
+            <p>ou</p>
+            <input type="file" id="m3u-file" hidden onchange="loadFromFile(event)">
+            <button class="btn-main" style="background:#333" onclick="document.getElementById('m3u-file').click()">ABRIR FICHEIRO</button>
+            <button class="btn-main" style="background:transparent; color:#888" onclick="toggleModal(false)">FECHAR</button>
+        </div>
+    </div>
+
+    <div id="web-player-modal">
+        <div class="player-header">
+            <span id="player-channel-name">Canal</span>
+            <button onclick="closeWebPlayer()" class="close-player-btn">FECHAR <i class="fas fa-times"></i></button>
+        </div>
+        <div class="video-container">
+            <video id="stream-video" controls autoplay></video>
         </div>
     </div>
 
