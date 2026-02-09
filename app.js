@@ -115,3 +115,28 @@ function filterChannels() {
     const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
     renderApp(filtered);
 }
+let lastScrollTop = 0;
+const header = document.querySelector('header');
+
+window.addEventListener('scroll', () => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const searchField = document.getElementById('search-field');
+
+    // REGRA DE SEGURANÇA: Não esconde se o utilizador estiver a escrever 
+    // ou se houver texto na pesquisa.
+    if (document.activeElement === searchField || searchField.value.length > 0) {
+        header.classList.remove('header-hidden');
+        return;
+    }
+
+    if (scrollTop > lastScrollTop && scrollTop > 70) {
+        // Scroll para BAIXO - Esconde a barra
+        header.classList.add('header-hidden');
+    } else {
+        // Scroll para CIMA - Mostra a barra
+        header.classList.remove('header-hidden');
+    }
+    
+    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // Para navegadores mobile
+}, { passive: true });
+}
