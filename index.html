@@ -9,112 +9,59 @@
     <link rel="manifest" href="manifest.json">
     
     <link rel="icon" type="image/png" href="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <style>
-        :root { --accent: #E50914; --bg: #000000; --surface: #111111; --text-main: #ffffff; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); overflow-x: hidden; }
-
-        /* SPLASH SCREEN */
-        #splash-screen {
-            position: fixed; inset: 0; background: #000; z-index: 5000;
-            display: flex; justify-content: center; align-items: center;
-            animation: finishSplash 1s ease 2.2s forwards;
-        }
-        .splash-logo { width: 160px; animation: pulse 2s infinite; }
-
-        /* HEADER SIMPLIFICADO */
-        header { 
-            position: fixed; top: 0; width: 100%; height: 70px; 
-            background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 4%; z-index: 2000;
-            border-bottom: 1px solid #222;
-        }
-        .brand-logo { height: 35px; width: auto; object-fit: contain; }
-        
-        .header-right { display: flex; align-items: center; gap: 15px; flex-grow: 1; justify-content: flex-end; }
-        
-        .search-bar {
-            background: #111; border: 1px solid #333; color: white;
-            padding: 8px 15px; border-radius: 20px; width: 40%; max-width: 250px;
-            outline: none; transition: 0.3s;
-        }
-        .search-bar:focus { border-color: var(--accent); width: 60%; }
-
-        /* HERO SECTION */
-        #hero-featured {
-            height: 60vh; position: relative; display: none; align-items: flex-end; padding: 0 6% 40px 6%;
-            background-size: cover; background-position: center; margin-bottom: 20px;
-        }
-        #hero-featured::before {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(to top, var(--bg) 10%, transparent 90%);
-        }
-        .hero-content { position: relative; z-index: 10; }
-        .hero-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 15px; text-transform: uppercase; }
-        .btn-play { background: white; color: black; padding: 12px 30px; border: none; border-radius: 4px; font-weight: 800; cursor: pointer; }
-
-        /* CONTEÚDO */
-        .content { padding-top: 80px; }
-        .row { margin-bottom: 30px; padding-left: 4%; }
-        .row-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 12px; color: #ccc; }
-        .carousel { display: flex; overflow-x: auto; gap: 12px; scrollbar-width: none; }
-        .carousel::-webkit-scrollbar { display: none; }
-
-        .card { 
-            flex: 0 0 140px; height: 200px; background: var(--surface); border-radius: 8px; 
-            position: relative; cursor: pointer; overflow: hidden;
-            display: flex; justify-content: center; align-items: center; border: 1px solid #222;
-        }
-        .card img { width: 80%; height: 80%; object-fit: contain; }
-        .card-info { 
-            position: absolute; bottom: 0; width: 100%; padding: 10px 5px; 
-            background: rgba(0,0,0,0.8); font-size: 0.75rem; text-align: center;
-        }
-
-        /* MODAL */
-        #config-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 4000; justify-content: center; align-items: center; }
-        .modal-content { background: #111; padding: 30px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
-        .btn-main { background: var(--accent); color: white; padding: 14px; border: none; border-radius: 6px; font-weight: 900; width: 100%; margin: 10px 0; cursor: pointer; }
-
-        @keyframes finishSplash { 99% { opacity: 0; } 100% { opacity: 0; visibility: hidden; } }
-        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="splash-screen">
-        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo">
+        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo" alt="A carregar...">
     </div>
 
     <header>
-        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="brand-logo">
+        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="brand-logo" alt="StreamLine">
         <div class="header-right">
-            <input type="text" id="search-field" class="search-bar" placeholder="Procurar..." oninput="filterChannels()">
-            <i class="fas fa-cog" style="cursor:pointer; color:#888" onclick="toggleModal(true)"></i>
+            <input type="text" id="search-field" class="search-bar" placeholder="Pesquisar..." oninput="filterChannels()">
+            <i class="fas fa-cog" onclick="toggleModal(true)" title="Configurações"></i>
         </div>
     </header>
 
     <div class="content">
         <div id="hero-featured">
             <div class="hero-content">
-                <h1 class="hero-title" id="hero-name">---</h1>
-                <button class="btn-play" id="hero-play">REPRODUZIR</button>
+                <h1 class="hero-title" id="hero-name">Carregando...</h1>
+                <button class="btn-play" id="hero-play">
+                    <i class="fas fa-play"></i> REPRODUZIR
+                </button>
             </div>
         </div>
+        
         <div id="main-content"></div>
     </div>
 
     <div id="config-modal">
         <div class="modal-content">
-            <h2>CONFIGURAÇÃO</h2>
-            <button class="btn-main" onclick="document.getElementById('file-input').click()">IMPORTAR FICHEIRO .M3U</button>
+            <h2>Gestão de Lista</h2>
+            
+            <button class="btn-main" onclick="document.getElementById('file-input').click()">
+                <i class="fas fa-folder-open"></i> IMPORTAR FICHEIRO .M3U
+            </button>
             <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
-            <input type="text" id="m3u-url" placeholder="URL da lista HTTPS" style="width:100%; padding:10px; margin-top:10px; background:#000; color:white; border:1px solid #333;">
-            <button class="btn-main" style="background:#333" onclick="loadFromUrl()">CARREGAR LINK</button>
-            <p onclick="toggleModal(false)" style="cursor:pointer; color:#666; margin-top:20px">VOLTAR</p>
+            
+            <div style="margin: 20px 0; font-size: 0.9rem; color: #666;">OU CARREGAR LINK</div>
+            
+            <input type="text" id="m3u-url" placeholder="https://exemplo.com/lista.m3u">
+            <button class="btn-main" style="background:#333; margin-top:15px;" onclick="loadFromUrl()">
+                <i class="fas fa-cloud-download-alt"></i> CARREGAR URL
+            </button>
+            
+            <p onclick="toggleModal(false)" style="cursor:pointer; color:#666; margin-top:25px; font-weight:600">FECHAR</p>
         </div>
     </div>
 
