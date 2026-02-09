@@ -36,6 +36,7 @@ body {
 
 .splash-logo {
     width: 150px;
+    width: auto;
     animation: logoPulse 2s infinite ease-in-out;
 }
 
