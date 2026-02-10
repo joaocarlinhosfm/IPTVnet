@@ -13,10 +13,10 @@ body {
     overflow-x: hidden;
 }
 
-/* --- HEADER COMPACTO & LOGO MENU --- */
+/* --- HEADER --- */
 header {
-    position: fixed; top: 0; width: 100%; height: 70px; /* Altura reduzida */
-    background: rgba(5, 5, 5, 0.85); 
+    position: fixed; top: 0; width: 100%; height: 70px;
+    background: rgba(5, 5, 5, 0.9); /* Mais opaco para leitura */
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 5%; z-index: 2000; 
@@ -26,42 +26,69 @@ header {
 
 .header-hidden { transform: translateY(-100%); }
 
+/* Container do Logo (Botão do Menu) */
 .logo-container {
+    position: relative; /* ESSENCIAL para o menu aparecer aqui e não no topo do ecrã */
     display: flex; align-items: center; gap: 8px; 
-    cursor: pointer; position: relative;
+    cursor: pointer; 
     padding: 5px 10px; border-radius: 8px;
-    transition: background 0.2s;
+    z-index: 2001;
 }
 
-.logo-container:active { background: rgba(255,255,255,0.05); }
+.logo-container:active { background: rgba(255,255,255,0.1); }
 
-.brand-logo { height: 35px; width: auto; object-fit: contain; } /* Logo mais pequeno */
-.logo-arrow { font-size: 0.8rem; color: #888; transition: transform 0.3s; }
+.brand-logo { height: 35px; width: auto; object-fit: contain; }
 
-/* Dropdown Menu */
+/* Seta do Menu (Forçando a cor e tamanho) */
+.logo-arrow { 
+    font-size: 0.8rem; 
+    color: #ffffff !important; /* Força a cor branca */
+    display: block; /* Garante que não está escondida */
+    opacity: 0.7;
+}
+
+/* --- DROPDOWN MENU (Correção Android) --- */
 .dropdown-menu {
-    display: none; position: absolute; top: 55px; left: 0;
-    background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; width: 180px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    overflow: hidden; animation: slideDown 0.2s ease;
+    display: none; /* Escondido por defeito */
+    position: absolute; 
+    top: 100%; /* Logo abaixo do container */
+    left: 0;
+    margin-top: 10px;
+    background: #1a1a1a; 
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; 
+    width: 180px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    overflow: hidden; 
+    z-index: 3000;
 }
 
-.dropdown-menu.show { display: block; }
+/* Classe que o JS adiciona para mostrar o menu */
+.dropdown-menu.show { 
+    display: block !important; 
+    animation: slideDown 0.2s ease forwards;
+}
+
 .menu-item {
-    padding: 12px 20px; color: #eee; font-size: 0.9rem;
+    padding: 15px 20px; color: #eee; font-size: 0.9rem;
     display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-.menu-item:hover { background: var(--accent); color: white; }
+.menu-item:last-child { border-bottom: none; }
+.menu-item:active { background: var(--accent); color: white; }
 
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideDown { 
+    from { opacity: 0; transform: translateY(-10px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
 
-/* Barra de Pesquisa */
+/* Search Bar */
 .search-bar {
-    background: rgba(255,255,255,0.08); border: 1px solid transparent;
-    color: white; padding: 8px 16px; border-radius: 20px; width: 140px;
+    background: rgba(255,255,255,0.1); border: 1px solid transparent;
+    color: white; padding: 8px 16px; border-radius: 20px; width: 120px;
     outline: none; transition: 0.3s; font-size: 0.85rem;
 }
-.search-bar:focus { width: 200px; border-color: var(--accent); background: rgba(0,0,0,0.5); }
+.search-bar:focus { width: 180px; border-color: var(--accent); background: black; }
 
 /* --- HERO --- */
 .content { padding-top: 0; min-height: 100vh; }
@@ -74,40 +101,47 @@ header {
 
 #hero-featured::before {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(to top, var(--bg) 15%, transparent 90%);
+    background: linear-gradient(to top, var(--bg) 10%, transparent 90%);
 }
 
 .hero-content { position: relative; z-index: 2; max-width: 600px; }
-.hero-title { font-size: 2.8rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: -1px; line-height: 1.1; }
+.hero-title { font-size: 2.2rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; line-height: 1.1; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
-/* Botão Elegante */
 .btn-play {
     background: white; color: black; border: none; 
-    padding: 10px 24px; /* Mais compacto */
-    font-weight: 700; 
-    border-radius: 50px; /* Formato pílula */
+    padding: 10px 24px; font-weight: 700; border-radius: 50px; 
     cursor: pointer; display: flex; align-items: center; gap: 8px;
-    font-size: 0.95rem; transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 0.95rem; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
-.btn-play:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(255,255,255,0.3); }
-.btn-play:active { transform: scale(0.95); }
+/* --- GRID & CAROUSEL (Correção do corte do Glow) --- */
+.row { margin: 10px 0 20px 5%; }
+.row-title { font-size: 1rem; font-weight: 700; margin-bottom: 5px; color: #ddd; text-transform: uppercase; }
 
-/* --- GRID --- */
-.row { margin: 20px 0 30px 5%; }
-.row-title { font-size: 1rem; font-weight: 800; margin-bottom: 15px; letter-spacing: 1px; text-transform: uppercase; color: #ddd; }
-
-.carousel { display: flex; overflow-x: auto; gap: 15px; scrollbar-width: none; padding-bottom: 10px; }
+.carousel { 
+    display: flex; overflow-x: auto; gap: 15px; 
+    scrollbar-width: none; 
+    /* AUMENTAMOS O PADDING AQUI PARA O CARD NÃO CORTAR AO CRESCER */
+    padding: 20px 10px 20px 0; 
+}
 .carousel::-webkit-scrollbar { display: none; }
 
 .card {
     flex: 0 0 140px; height: 200px; background: var(--surface);
     border-radius: 12px; position: relative; overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.05); transition: 0.3s;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.05); transition: transform 0.3s ease, box-shadow 0.3s ease;
+    /* Sombras iniciais */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 
-.card:hover { transform: translateY(-5px); border-color: var(--accent); }
+.card:hover, .card:active { 
+    /* O padding extra no carrossel permite isto sem cortar: */
+    transform: scale(1.05) translateY(-5px); 
+    border-color: var(--accent); 
+    box-shadow: 0 10px 25px rgba(229, 9, 20, 0.4); /* Glow vermelho */
+    z-index: 10;
+}
+
 .card img { width: 100%; height: 100%; object-fit: contain; padding: 20px; }
 .card-info {
     position: absolute; bottom: 0; width: 100%; padding: 8px;
@@ -117,15 +151,15 @@ header {
 
 /* --- MODAL --- */
 #config-modal {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95);
     z-index: 5000; justify-content: center; align-items: center;
 }
 .modal-content {
-    background: #111; padding: 30px; border-radius: 20px; width: 90%; max-width: 380px;
+    background: #111; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px;
     text-align: center; border: 1px solid #333;
 }
 .modal-content input {
-    width: 100%; padding: 12px; margin: 15px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 8px; outline: none;
+    width: 100%; padding: 12px; margin: 15px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 8px;
 }
 .btn-main {
     width: 100%; padding: 12px; margin: 5px 0; border: none;
@@ -133,7 +167,6 @@ header {
 }
 .divider { margin: 10px 0; color: #555; font-size: 0.8rem; }
 
-/* Splash */
 #splash-screen {
     position: fixed; inset: 0; background: #000; z-index: 9999;
     display: flex; justify-content: center; align-items: center;
