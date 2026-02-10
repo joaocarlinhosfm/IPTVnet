@@ -14,10 +14,17 @@
     </div>
 
     <header id="main-header">
-        <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="brand-logo" alt="Logo">
+        <div class="logo-container" id="logo-btn">
+            <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="brand-logo" alt="Logo">
+            <i class="fas fa-caret-down logo-arrow"></i> <div class="dropdown-menu" id="dropdown">
+                <div class="menu-item" onclick="toggleModal(true)">
+                    <i class="fas fa-cog"></i> Configurações
+                </div>
+            </div>
+        </div>
+
         <div class="header-right">
             <input type="text" id="search-field" class="search-bar" placeholder="Pesquisar..." oninput="filterChannels()">
-            <i class="fas fa-cog" onclick="toggleModal(true)"></i>
         </div>
     </header>
 
@@ -25,7 +32,9 @@
         <section id="hero-featured" style="display: none;">
             <div class="hero-content">
                 <h1 id="hero-name" class="hero-title"></h1>
-                <button id="hero-play" class="btn-play"><i class="fas fa-play"></i> REPRODUZIR NO VLC</button>
+                <button id="hero-play" class="btn-play">
+                    <i class="fas fa-play"></i> Assistir Agora
+                </button>
             </div>
         </section>
 
