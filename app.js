@@ -100,8 +100,8 @@ function setupHero(data) {
 
     // Dicionário de Imagens por Categoria
     const categoryImages = {
-        "NACIONAIS": "https://images.unsplash.com/photo-1555601568-c9e6f328489b?q=80&w=1920",
-        "DESPORTO": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1920",
+        "NACIONAIS": "https://i.ibb.co/KxmGp1D4/Gemini-Generated-Image-sza1f6sza1f6sza1.png",
+        "DESPORTO": "https://i.ibb.co/FbQ2bRPQ/Gemini-Generated-Image-plg7uplg7uplg7up.png",
         "NOTICIAS": "https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=1920",
         "FILMES": "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=1920",
         "SERIES": "https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=80&w=1920",
