@@ -3,20 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamLine IPTV</title>
+    <title>StreamLine Premium</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="splash-screen">
-        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo" alt="Logo">
+        <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="splash-logo">
     </div>
 
     <header id="main-header">
+        <div class="header-left">
+            </div>
+
         <div class="logo-container" id="logo-btn">
-            <img src="https://i.ibb.co/7tqXSSFB/unnamed-Photoroom.png" class="brand-logo" alt="Logo">
-            <i class="fas fa-caret-down logo-arrow"></i> <div class="dropdown-menu" id="dropdown">
+            <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="brand-logo">
+            <i class="fas fa-caret-down logo-arrow"></i>
+            <div class="dropdown-menu" id="dropdown">
                 <div class="menu-item" onclick="toggleModal(true)">
                     <i class="fas fa-cog"></i> Configurações
                 </div>
@@ -24,7 +28,10 @@
         </div>
 
         <div class="header-right">
-            <input type="text" id="search-field" class="search-bar" placeholder="Pesquisar..." oninput="filterChannels()">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-field" placeholder="Pesquisar..." oninput="filterChannels()">
+            </div>
         </div>
     </header>
 
@@ -44,7 +51,7 @@
     <div id="config-modal">
         <div class="modal-content">
             <h2>Configurar Lista M3U</h2>
-            <input type="text" id="m3u-url" placeholder="Colar link .m3u aqui">
+            <input type="text" id="m3u-url" placeholder="Link .m3u">
             <button class="btn-main" onclick="loadFromUrl()">CARREGAR LINK</button>
             <div class="divider">ou</div>
             <input type="file" id="m3u-file" hidden onchange="loadFromFile(event)">
