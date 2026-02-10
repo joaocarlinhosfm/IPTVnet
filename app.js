@@ -42,9 +42,9 @@ function setupHero(data) {
     const random = data[Math.floor(Math.random() * data.length)];
     const category = (random.group || "Geral").toUpperCase();
 
-    const categoryImages = {   
-        "NACIONAIS": "https://i.ibb.co/KxmGp1D4/Gemini-Generated-Image-sza1f6sza1f6sza1.png",
-        "DESPORTO": "https://i.ibb.co/FbQ2bRPQ/Gemini-Generated-Image-plg7uplg7uplg7up.png",
+    const categoryImages = {
+        "NACIONAIS": "https://images.unsplash.com/photo-1469395272481-645826f59265?q=80&w=1920",
+        "DESPORTO": "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1920",
         "NOTICIAS": "https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=1920",
         "FILMES": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1920",
         "KIDS": "https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?q=80&w=1920"
