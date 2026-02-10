@@ -1,104 +1,97 @@
 :root {
-    --accent: #E50914; /* Vermelho Netflix */
-    --highlight: #f3ce13; /* Amarelo para seleção */
-    --bg: #141414;
-    --header-bg: rgba(20, 20, 20, 0.8);
+    --accent: #E50914;
+    --highlight: #f3ce13; /* Amarelo da imagem */
+    --bg: #0a0a0a;
+    --surface: #1a1a1a;
 }
 
-body {
-    background-color: var(--bg);
-    color: #fff;
-    font-family: 'Inter', sans-serif;
-    margin: 0;
-}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+
+body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; overflow-x: hidden; }
 
 /* --- HEADER CENTRALIZADO --- */
 header {
     position: fixed; top: 0; width: 100%; height: 70px;
-    background: var(--header-bg); backdrop-filter: blur(15px);
+    background: rgba(10, 10, 10, 0.85); backdrop-filter: blur(20px);
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 4%; z-index: 1000;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 0 4%; z-index: 2000; border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
-.logo-container {
-    position: absolute; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center;
-}
+.logo-container { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; }
+.brand-logo { height: 35px; }
+.logo-arrow { color: white; font-size: 0.8rem; }
 
-.search-container {
-    margin-left: auto;
-    display: flex; align-items: center;
-    background: rgba(255,255,255,0.1);
-    padding: 5px 15px; border-radius: 4px;
+.dropdown-menu {
+    display: none; position: absolute; top: 50px; left: 0;
+    background: #1a1a1a; border: 1px solid #333; border-radius: 8px; width: 180px;
 }
+.dropdown-menu.show { display: block; }
+.menu-item { padding: 12px 20px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.menu-item:hover { background: var(--accent); }
 
-.search-bar {
-    background: transparent; border: none; color: white; outline: none; padding: 5px;
-}
+.search-box { background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 4px; display: flex; align-items: center; gap: 10px; }
+.search-box input { background: transparent; border: none; color: white; outline: none; width: 120px; }
 
-/* --- HERO COM BORDA BRILHANTE --- */
+/* --- CONTEÚDO E HERO (Look da Imagem) --- */
 .content { padding-top: 90px; }
 
 #hero-featured {
-    margin: 0 4%;
-    height: 55vh;
-    border: 1px solid var(--accent); /* A borda fina vermelha da imagem */
-    border-radius: 12px;
-    position: relative;
-    overflow: hidden;
-    background-size: cover; background-position: center;
+    margin: 0 4% 30px 4%; height: 50vh;
+    border: 1px solid var(--accent); /* Borda vermelha da imagem */
+    border-radius: 12px; position: relative; overflow: hidden;
     display: flex; align-items: flex-end; padding: 40px;
+    background-size: cover; background-position: center;
     box-shadow: 0 0 20px rgba(229, 9, 20, 0.2);
 }
 
 #hero-featured::before {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(70deg, rgba(0,0,0,0.8) 30%, transparent 100%);
+    background: linear-gradient(to top, var(--bg) 10%, transparent 100%);
 }
 
-.hero-title {
-    font-size: 3rem; font-weight: 900; position: relative; z-index: 2;
-    max-width: 600px; line-height: 1.1; margin-bottom: 20px;
-}
+.hero-content { position: relative; z-index: 2; }
+.hero-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 20px; line-height: 1; }
 
 .btn-play {
-    background: var(--accent); color: white; border: none;
-    padding: 12px 30px; border-radius: 50px; /* Pílula elegante */
-    font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    background: var(--accent); color: white; border: none; padding: 12px 25px;
+    border-radius: 50px; font-weight: bold; cursor: pointer;
 }
 
-/* --- GRID DE RESULTADOS --- */
-.search-results-header {
-    margin: 20px 4%; font-size: 1.5rem; font-weight: bold;
-}
+/* --- GRID E CARDS (Destaque Amarelo) --- */
+.row { margin: 20px 4%; }
+.row-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; }
 
-.row { margin: 30px 4%; }
-
-.carousel {
-    display: flex; gap: 15px; overflow-x: auto;
-    padding: 20px 0 40px 0; /* Espaço para o glow não cortar */
-    scrollbar-width: none;
-}
+.carousel { display: flex; overflow-x: auto; gap: 15px; padding: 20px 0 40px 0; scrollbar-width: none; }
+.carousel::-webkit-scrollbar { display: none; }
 
 .card {
-    flex: 0 0 160px; height: 240px;
-    border-radius: 8px; border: 2px solid transparent;
-    transition: all 0.3s ease; cursor: pointer;
-    background: #222; position: relative;
+    flex: 0 0 150px; height: 220px; background: var(--surface);
+    border-radius: 10px; border: 2px solid transparent; 
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;
+    position: relative;
 }
 
-/* O "Destaque Amarelo" da tua imagem ao passar o rato/dedo */
+/* O efeito de destaque da imagem */
 .card:hover {
-    transform: scale(1.05);
-    border-color: var(--highlight);
-    box-shadow: 0 0 15px rgba(243, 206, 19, 0.4);
+    transform: scale(1.08);
+    border-color: var(--highlight); /* Borda amarela ao selecionar */
+    box-shadow: 0 0 20px rgba(243, 206, 19, 0.4);
+    z-index: 10;
 }
 
-.card img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
-
+.card img { width: 100%; height: 100%; object-fit: contain; padding: 20px; border-radius: 10px; }
 .card-info {
     position: absolute; bottom: 0; width: 100%; padding: 10px;
-    background: linear-gradient(transparent, #000);
-    font-size: 0.8rem; text-align: center;
+    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+    font-size: 0.75rem; text-align: center; border-radius: 0 0 10px 10px;
 }
+
+/* Modal e Splash */
+#config-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; }
+.modal-content { background: #111; padding: 30px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center; border: 1px solid #333; }
+.modal-content input { width: 100%; padding: 12px; margin: 15px 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 8px; }
+.btn-main { width: 100%; padding: 12px; margin: 5px 0; border: none; background: var(--accent); color: white; border-radius: 8px; font-weight: bold; }
+.divider { margin: 10px 0; color: #555; font-size: 0.8rem; }
+#splash-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; justify-content: center; align-items: center; animation: fadeOut 0.5s ease 1.5s forwards; }
+.splash-logo { width: 150px; }
+@keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
