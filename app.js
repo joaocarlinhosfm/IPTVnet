@@ -8,7 +8,27 @@ window.onload = () => {
         toggleModal(true);
     }
     setupSmartHeader();
+    setupLogoMenu(); // Nova função para o menu
 };
+
+// --- LOGO MENU DROPDOWN ---
+function setupLogoMenu() {
+    const logoBtn = document.getElementById('logo-btn');
+    const dropdown = document.getElementById('dropdown');
+    
+    // Toggle ao clicar no logo
+    logoBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Impede que o clique feche imediatamente
+        dropdown.classList.toggle('show');
+    });
+
+    // Fechar ao clicar fora
+    window.addEventListener('click', () => {
+        if (dropdown.classList.contains('show')) {
+            dropdown.classList.remove('show');
+        }
+    });
+}
 
 // --- SMART HEADER ---
 function setupSmartHeader() {
@@ -24,15 +44,16 @@ function setupSmartHeader() {
 function toggleModal(show) {
     const modal = document.getElementById('config-modal');
     modal.style.display = show ? 'flex' : 'none';
+    // Se abrir o modal, fecha o dropdown do menu se estiver aberto
+    if(show) document.getElementById('dropdown').classList.remove('show');
 }
 
-// --- IMPORTAÇÃO DE LISTA (CORRIGIDA) ---
+// --- IMPORTAÇÃO DE LISTA ---
 async function loadFromUrl() {
     const urlInput = document.getElementById('m3u-url');
     const url = urlInput.value.trim();
     if (!url) return alert("Por favor, insere um URL.");
 
-    // Proxy para evitar erros de CORS
     const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
     
     try {
@@ -94,7 +115,7 @@ function processM3U(text) {
     }
 }
 
-// --- RENDERIZAÇÃO (Com animações Premium) ---
+// --- RENDERIZAÇÃO ---
 function renderApp(data) {
     const container = document.getElementById('main-content');
     container.innerHTML = '';
@@ -112,7 +133,7 @@ function renderApp(data) {
     Object.keys(groups).sort().forEach((group, index) => {
         const row = document.createElement('div');
         row.className = 'row';
-        row.style.animationDelay = `${index * 0.1}s`; // Stagger effect
+        row.style.animationDelay = `${index * 0.1}s`;
         row.innerHTML = `<div class="row-title">${group}</div><div class="carousel"></div>`;
         const carousel = row.querySelector('.carousel');
 
@@ -121,7 +142,6 @@ function renderApp(data) {
             card.className = 'card';
             card.onclick = () => window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
             
-            // Lazy loading e placeholder
             card.innerHTML = `
                 <img src="${ch.logo}" loading="lazy" onerror="this.src='https://via.placeholder.com/150/111/fff?text=TV'">
                 <div class="card-info">${ch.name}</div>
@@ -132,7 +152,7 @@ function renderApp(data) {
     });
 }
 
-// --- HERO DINÂMICO (Com as tuas imagens restauradas) ---
+// --- HERO DINÂMICO ---
 function setupHero(data) {
     const hero = document.getElementById('hero-featured');
     if (!hero || data.length === 0) return;
@@ -140,7 +160,7 @@ function setupHero(data) {
     const random = data[Math.floor(Math.random() * data.length)];
     const category = (random.group || "Geral").toUpperCase();
 
-    // As tuas imagens personalizadas
+    // As tuas imagens personalizadas + Unsplash
     const categoryImages = {   
         "NACIONAIS": "https://i.ibb.co/KxmGp1D4/Gemini-Generated-Image-sza1f6sza1f6sza1.png",
         "DESPORTO": "https://i.ibb.co/FbQ2bRPQ/Gemini-Generated-Image-plg7uplg7uplg7up.png",
@@ -149,7 +169,7 @@ function setupHero(data) {
         "KIDS": "https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?q=80&w=1920"
     };
 
-    let bg = "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1920"; // Imagem padrão
+    let bg = "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1920";
 
     for (let key in categoryImages) {
         if (category.includes(key)) { 
@@ -158,13 +178,13 @@ function setupHero(data) {
         }
     }
 
-    // Preencher dados do Hero
     const heroName = document.getElementById('hero-name');
     const heroPlay = document.getElementById('hero-play');
 
     if(heroName) heroName.innerText = random.name;
     
     if(heroPlay) {
+        // Atualizado para não precisar de texto no JS, já está no HTML
         heroPlay.onclick = () => {
             window.location.href = `intent:${random.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
         };
