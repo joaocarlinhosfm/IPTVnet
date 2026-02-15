@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>StreamLine Premium</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -10,22 +10,29 @@
 <body>
 
     <div id="splash-screen">
-        <img src="https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png" class="splash-logo">
+        <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="splash-logo">
+    </div>
+
+    <div id="video-player-container" style="display: none;">
+        <div class="player-controls">
+            <button onclick="closePlayer()" class="btn-close-player"><i class="fas fa-arrow-left"></i> Voltar</button>
+        </div>
+        <video id="main-video" controls autoplay playsinline></video>
     </div>
 
     <header id="main-header">
-        <div class="header-left">
-            </div>
-
         <div class="logo-container" id="logo-btn">
-            <img src="https://i.ibb.co/7tqXSSFB/unnamed-Photoroom.png" class="brand-logo">
+            <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="brand-logo">
             <i class="fas fa-caret-down logo-arrow"></i>
             <div class="dropdown-menu" id="dropdown">
-                <div class="menu-item" onclick="toggleModal(true)">
-                    <i class="fas fa-cog"></i> Configurações
-                </div>
+                <div class="menu-item" onclick="toggleModal(true)"><i class="fas fa-cog"></i> Configurar</div>
             </div>
         </div>
+
+        <nav class="nav-tabs">
+            <div class="tab-item active" id="tab-tv" onclick="switchTab('tv')">Televisão</div>
+            <div class="tab-item" id="tab-streams" onclick="switchTab('streams')">Livestreams</div>
+        </nav>
 
         <div class="header-right">
             <div class="search-box">
@@ -36,12 +43,10 @@
     </header>
 
     <main class="content">
-        <section id="hero-featured" style="display: none;">
+        <section id="hero-featured">
             <div class="hero-content">
                 <h1 id="hero-name" class="hero-title"></h1>
-                <button id="hero-play" class="btn-play">
-                    <i class="fas fa-play"></i> Assistir Agora
-                </button>
+                <button id="hero-play" class="btn-play"><i class="fas fa-play"></i> Assistir Agora</button>
             </div>
         </section>
 
@@ -50,13 +55,19 @@
 
     <div id="config-modal">
         <div class="modal-content">
-            <h2>Configurar Lista M3U</h2>
-            <input type="text" id="m3u-url" placeholder="Link .m3u">
-            <button class="btn-main" onclick="loadFromUrl()">CARREGAR LINK</button>
+            <h2>Configurar</h2>
+            
+            <p class="modal-label">Lista M3U (Televisão)</p>
+            <input type="text" id="m3u-url" placeholder="URL .m3u">
+            <button class="btn-main" onclick="loadFromUrl()">CARREGAR M3U</button>
+            
             <div class="divider">ou</div>
-            <input type="file" id="m3u-file" hidden onchange="loadFromFile(event)">
-            <button class="btn-main" style="background:#333" onclick="document.getElementById('m3u-file').click()">ABRIR FICHEIRO</button>
-            <button class="btn-main" style="background:transparent; color:#888; border:1px solid #333" onclick="toggleModal(false)">FECHAR</button>
+
+            <p class="modal-label">Link Direto (Player Interno)</p>
+            <input type="text" id="direct-stream-url" placeholder="https://... (mp4, m3u8)">
+            <button class="btn-main" style="background: #28a745" onclick="addDirectStream()">ADICIONAR STREAM</button>
+
+            <button class="btn-main" style="background:#333; margin-top:20px" onclick="toggleModal(false)">FECHAR</button>
         </div>
     </div>
 
