@@ -46,15 +46,10 @@ function renderTV(data) {
     const container = document.getElementById('main-content');
     const hero = document.getElementById('hero-featured');
     const isSearch = document.getElementById('search-field').value.length > 0;
-
     container.innerHTML = '';
+
     if (isSearch) hero.style.display = 'none';
     else { hero.style.display = 'flex'; setupHero(data); }
-
-    if (data.length === 0) {
-        container.innerHTML = `<p style="padding: 40px; color: #666; text-align: center;">Nenhum canal encontrado.</p>`;
-        return;
-    }
 
     const groups = data.reduce((acc, ch) => {
         acc[ch.group] = acc[ch.group] || [];
@@ -72,10 +67,7 @@ function renderTV(data) {
             const card = document.createElement('div');
             card.className = 'card';
             card.onclick = () => window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
-            card.innerHTML = `
-                <img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/150/111/fff?text=TV'">
-                <div class="card-info">${ch.name}</div>
-            `;
+            card.innerHTML = `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/150/111/fff?text=TV'"><div class="card-info">${ch.name}</div>`;
             carousel.appendChild(card);
         });
         container.appendChild(row);
@@ -85,7 +77,7 @@ function renderTV(data) {
 function renderStreams(data) {
     document.getElementById('hero-featured').style.display = 'none';
     const container = document.getElementById('main-content');
-    container.innerHTML = `<div class="row"><div class="row-title">As Minhas Livestreams</div><div class="carousel" id="stream-grid"></div></div>`;
+    container.innerHTML = `<div class="row"><div class="row-title">Livestreams Importadas</div><div class="carousel" id="stream-grid"></div></div>`;
     const grid = document.getElementById('stream-grid');
 
     data.forEach((link, index) => {
@@ -99,6 +91,41 @@ function renderStreams(data) {
         card.onclick = () => playInternal(link.url);
         grid.appendChild(card);
     });
+}
+
+function playInternal(url) {
+    const container = document.getElementById('video-player-container');
+    const video = document.getElementById('main-video');
+    const iframe = document.getElementById('main-iframe');
+    
+    container.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // Deteção: Se o link contém extensões de vídeo direto
+    const isDirect = url.toLowerCase().includes('.m3u8') || url.toLowerCase().includes('.mp4') || url.toLowerCase().includes('.ts');
+
+    if (isDirect) {
+        iframe.style.display = 'none';
+        iframe.src = "";
+        video.style.display = 'block';
+        video.src = url;
+        video.play().catch(() => {});
+    } else {
+        video.style.display = 'none';
+        video.pause();
+        video.src = "";
+        iframe.style.display = 'block';
+        iframe.src = url;
+    }
+}
+
+function closePlayer() {
+    const video = document.getElementById('main-video');
+    const iframe = document.getElementById('main-iframe');
+    video.pause(); video.src = "";
+    iframe.src = "";
+    document.getElementById('video-player-container').style.display = 'none';
+    document.body.style.overflow = 'auto';
 }
 
 function addDirectStream() {
@@ -117,21 +144,6 @@ function deleteStream(e, index) {
     directLinks.splice(index, 1);
     localStorage.setItem('direct_links', JSON.stringify(directLinks));
     renderStreams(directLinks);
-}
-
-function playInternal(url) {
-    const container = document.getElementById('video-player-container');
-    const video = document.getElementById('main-video');
-    container.style.display = 'flex';
-    video.src = url;
-    document.body.style.overflow = 'hidden';
-}
-
-function closePlayer() {
-    const video = document.getElementById('main-video');
-    video.pause(); video.src = "";
-    document.getElementById('video-player-container').style.display = 'none';
-    document.body.style.overflow = 'auto';
 }
 
 async function loadFromUrl() {
