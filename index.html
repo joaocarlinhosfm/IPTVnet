@@ -17,7 +17,15 @@
         <div class="player-controls">
             <button onclick="closePlayer()" class="btn-close-player"><i class="fas fa-arrow-left"></i> Voltar</button>
         </div>
-        <video id="main-video" controls autoplay playsinline></video>
+        
+        <video id="main-video" controls autoplay playsinline style="display: none;"></video>
+        
+        <iframe id="main-iframe" 
+                style="display: none; width: 100%; height: 100%; border: none;" 
+                allowfullscreen 
+                allow="autoplay; encrypted-media" 
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation">
+        </iframe>
     </div>
 
     <header id="main-header">
@@ -56,16 +64,15 @@
     <div id="config-modal">
         <div class="modal-content">
             <h2>Configurar</h2>
-            
-            <p class="modal-label">Lista M3U (Televisão)</p>
-            <input type="text" id="m3u-url" placeholder="URL .m3u">
-            <button class="btn-main" onclick="loadFromUrl()">CARREGAR M3U</button>
+            <p class="modal-label">Lista M3U (VLC)</p>
+            <input type="text" id="m3u-url" placeholder="URL da Playlist">
+            <button class="btn-main" onclick="loadFromUrl()">CARREGAR LISTA</button>
             
             <div class="divider">ou</div>
 
-            <p class="modal-label">Link Direto (Player Interno)</p>
-            <input type="text" id="direct-stream-url" placeholder="https://... (mp4, m3u8)">
-            <button class="btn-main" style="background: #28a745" onclick="addDirectStream()">ADICIONAR STREAM</button>
+            <p class="modal-label">Link Direto ou Embed (Navegador)</p>
+            <input type="text" id="direct-stream-url" placeholder="URL da Stream/Site">
+            <button class="btn-main" style="background: #28a745" onclick="addDirectStream()">ADICIONAR ÀS LIVESTREAMS</button>
 
             <button class="btn-main" style="background:#333; margin-top:20px" onclick="toggleModal(false)">FECHAR</button>
         </div>
