@@ -3,10 +3,16 @@ let directLinks = JSON.parse(localStorage.getItem('direct_links')) || [];
 let currentTab = 'tv';
 let searchTimeout = null;
 
+// Substitui o placeholder que estava a dar erro
+const PLACEHOLDER = "https://placehold.co/150x200/1a1a1a/ffffff?text=TV";
+
 window.onload = () => {
     setupLogoMenu();
-    if (allChannels.length > 0) switchTab('tv');
-    else toggleModal(true);
+    if (allChannels.length > 0 || directLinks.length > 0) {
+        switchTab(allChannels.length > 0 ? 'tv' : 'streams');
+    } else {
+        toggleModal(true);
+    }
 };
 
 function setupLogoMenu() {
@@ -48,12 +54,13 @@ function renderTV(data) {
     const isSearch = document.getElementById('search-field').value.length > 0;
     container.innerHTML = '';
 
-    if (isSearch) hero.style.display = 'none';
+    if (isSearch || data.length === 0) hero.style.display = 'none';
     else { hero.style.display = 'flex'; setupHero(data); }
 
     const groups = data.reduce((acc, ch) => {
-        acc[ch.group] = acc[ch.group] || [];
-        acc[ch.group].push(ch);
+        const g = ch.group || "Geral";
+        acc[g] = acc[g] || [];
+        acc[g].push(ch);
         return acc;
     }, {});
 
@@ -67,7 +74,7 @@ function renderTV(data) {
             const card = document.createElement('div');
             card.className = 'card';
             card.onclick = () => window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
-            card.innerHTML = `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/150/111/fff?text=TV'"><div class="card-info">${ch.name}</div>`;
+            card.innerHTML = `<img src="${ch.logo}" onerror="this.src='${PLACEHOLDER}'"><div class="card-info">${ch.name}</div>`;
             carousel.appendChild(card);
         });
         container.appendChild(row);
@@ -77,7 +84,7 @@ function renderTV(data) {
 function renderStreams(data) {
     document.getElementById('hero-featured').style.display = 'none';
     const container = document.getElementById('main-content');
-    container.innerHTML = `<div class="row"><div class="row-title">Livestreams Importadas</div><div class="carousel" id="stream-grid"></div></div>`;
+    container.innerHTML = `<div class="row"><div class="row-title">Livestreams Navegador</div><div class="carousel" id="stream-grid"></div></div>`;
     const grid = document.getElementById('stream-grid');
 
     data.forEach((link, index) => {
@@ -85,7 +92,7 @@ function renderStreams(data) {
         card.className = 'card';
         card.innerHTML = `
             <button class="btn-delete" onclick="deleteStream(event, ${index})"><i class="fas fa-trash"></i></button>
-            <img src="https://i.ibb.co/FbQ2bRPQ/Gemini-Generated-Image-plg7uplg7uplg7up.png" style="opacity: 0.4">
+            <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" style="opacity: 0.3; padding: 20px">
             <div class="card-info">${link.name}</div>
         `;
         card.onclick = () => playInternal(link.url);
@@ -99,10 +106,9 @@ function playInternal(url) {
     const iframe = document.getElementById('main-iframe');
     
     container.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-
-    // Deteção: Se o link contém extensões de vídeo direto
-    const isDirect = url.toLowerCase().includes('.m3u8') || url.toLowerCase().includes('.mp4') || url.toLowerCase().includes('.ts');
+    
+    // Verifica se é vídeo direto (.m3u8, .mp4, .ts)
+    const isDirect = url.toLowerCase().match(/\.(m3u8|mp4|ts|mkv)/);
 
     if (isDirect) {
         iframe.style.display = 'none';
@@ -112,10 +118,9 @@ function playInternal(url) {
         video.play().catch(() => {});
     } else {
         video.style.display = 'none';
-        video.pause();
         video.src = "";
         iframe.style.display = 'block';
-        iframe.src = url;
+        iframe.src = url; // Aqui ele vai carregar o site do SpiderEmbed sem restrições
     }
 }
 
@@ -125,7 +130,6 @@ function closePlayer() {
     video.pause(); video.src = "";
     iframe.src = "";
     document.getElementById('video-player-container').style.display = 'none';
-    document.body.style.overflow = 'auto';
 }
 
 function addDirectStream() {
@@ -183,5 +187,5 @@ function setupHero(data) {
     const hero = document.getElementById('hero-featured');
     document.getElementById('hero-name').innerText = random.name;
     document.getElementById('hero-play').onclick = () => window.location.href = `intent:${random.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
-    hero.style.backgroundImage = `url('https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1920')`;
+    hero.style.backgroundImage = `url('https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=1000')`;
 }
