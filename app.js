@@ -1,9 +1,12 @@
 let allChannels = JSON.parse(localStorage.getItem('my_channels')) || [];
+let directLinks = JSON.parse(localStorage.getItem('direct_links')) || [];
+let currentTab = 'tv';
+let searchTimeout = null;
 
 window.onload = () => {
-    if (allChannels.length > 0) renderApp(allChannels);
-    else toggleModal(true);
     setupLogoMenu();
+    if (allChannels.length > 0) switchTab('tv');
+    else toggleModal(true);
 };
 
 function setupLogoMenu() {
@@ -17,20 +20,40 @@ function toggleModal(show) {
     document.getElementById('config-modal').style.display = show ? 'flex' : 'none';
 }
 
-function renderApp(data) {
-    const container = document.getElementById('main-content');
-    container.innerHTML = '';
-    
-    const searchVal = document.getElementById('search-field').value;
-    const isSearch = searchVal.length > 0;
-    const hero = document.getElementById('hero-featured');
+function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-tv').classList.toggle('active', tab === 'tv');
+    document.getElementById('tab-streams').classList.toggle('active', tab === 'streams');
+    document.getElementById('search-field').value = '';
+    filterChannels();
+}
 
-    if (isSearch) {
-        hero.style.display = 'none';
-        container.innerHTML = `<h2 style="margin: 20px 4%">Resultados para: ${searchVal}</h2>`;
-    } else {
-        hero.style.display = 'flex';
-        setupHero(allChannels); //
+function filterChannels() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        const query = document.getElementById('search-field').value.toLowerCase();
+        if (currentTab === 'tv') {
+            const filtered = allChannels.filter(c => c.name.toLowerCase().includes(query));
+            renderTV(filtered);
+        } else {
+            const filtered = directLinks.filter(l => l.name.toLowerCase().includes(query));
+            renderStreams(filtered);
+        }
+    }, 300);
+}
+
+function renderTV(data) {
+    const container = document.getElementById('main-content');
+    const hero = document.getElementById('hero-featured');
+    const isSearch = document.getElementById('search-field').value.length > 0;
+
+    container.innerHTML = '';
+    if (isSearch) hero.style.display = 'none';
+    else { hero.style.display = 'flex'; setupHero(data); }
+
+    if (data.length === 0) {
+        container.innerHTML = `<p style="padding: 40px; color: #666; text-align: center;">Nenhum canal encontrado.</p>`;
+        return;
     }
 
     const groups = data.reduce((acc, ch) => {
@@ -39,10 +62,9 @@ function renderApp(data) {
         return acc;
     }, {});
 
-    Object.keys(groups).sort().forEach((group, index) => {
+    Object.keys(groups).sort().forEach(group => {
         const row = document.createElement('div');
         row.className = 'row';
-        row.style.animationDelay = `${index * 0.1}s`; //
         row.innerHTML = `<div class="row-title">${group}</div><div class="carousel"></div>`;
         const carousel = row.querySelector('.carousel');
 
@@ -51,7 +73,7 @@ function renderApp(data) {
             card.className = 'card';
             card.onclick = () => window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
             card.innerHTML = `
-                <img src="${ch.logo}" loading="lazy" onerror="this.src='https://via.placeholder.com/150/111/fff?text=TV'">
+                <img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/150/111/fff?text=TV'">
                 <div class="card-info">${ch.name}</div>
             `;
             carousel.appendChild(card);
@@ -60,29 +82,94 @@ function renderApp(data) {
     });
 }
 
-function setupHero(data) {
-    if (!data.length) return;
-    const hero = document.getElementById('hero-featured');
-    const random = data[Math.floor(Math.random() * data.length)];
-    const category = (random.group || "Geral").toUpperCase();
+function renderStreams(data) {
+    document.getElementById('hero-featured').style.display = 'none';
+    const container = document.getElementById('main-content');
+    container.innerHTML = `<div class="row"><div class="row-title">As Minhas Livestreams</div><div class="carousel" id="stream-grid"></div></div>`;
+    const grid = document.getElementById('stream-grid');
 
-    // Tuas imagens recuperadas
-    const categoryImages = {   
-        "NACIONAIS": "https://i.ibb.co/KxmGp1D4/Gemini-Generated-Image-sza1f6sza1f6sza1.png",
-        "DESPORTO": "https://i.ibb.co/FbQ2bRPQ/Gemini-Generated-Image-plg7uplg7uplg7up.png",
-        "NOTICIAS": "https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=1920",
-        "FILMES": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1920",
-        "KIDS": "https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?q=80&w=1920"
-    };
-
-    let bg = categoryImages[Object.keys(categoryImages).find(k => category.includes(k))] || "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1920";
-
-    document.getElementById('hero-name').innerText = random.name;
-    document.getElementById('hero-play').onclick = () => {
-        window.location.href = `intent:${random.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
-    };
-    hero.style.backgroundImage = `url('${bg}')`;
+    data.forEach((link, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <button class="btn-delete" onclick="deleteStream(event, ${index})"><i class="fas fa-trash"></i></button>
+            <img src="https://i.ibb.co/FbQ2bRPQ/Gemini-Generated-Image-plg7uplg7uplg7up.png" style="opacity: 0.4">
+            <div class="card-info">${link.name}</div>
+        `;
+        card.onclick = () => playInternal(link.url);
+        grid.appendChild(card);
+    });
 }
 
-// Funções de importação omitidas aqui mas devem ser mantidas conforme o teu ficheiro original
-function filterChannels() { renderApp(allChannels.filter(c => c.name.toLowerCase().includes(document.getElementById('search-field').value.toLowerCase()))); }
+function addDirectStream() {
+    const url = document.getElementById('direct-stream-url').value.trim();
+    if (!url) return;
+    const name = "Stream " + (directLinks.length + 1);
+    directLinks.push({ name, url });
+    localStorage.setItem('direct_links', JSON.stringify(directLinks));
+    document.getElementById('direct-stream-url').value = '';
+    toggleModal(false);
+    switchTab('streams');
+}
+
+function deleteStream(e, index) {
+    e.stopPropagation();
+    directLinks.splice(index, 1);
+    localStorage.setItem('direct_links', JSON.stringify(directLinks));
+    renderStreams(directLinks);
+}
+
+function playInternal(url) {
+    const container = document.getElementById('video-player-container');
+    const video = document.getElementById('main-video');
+    container.style.display = 'flex';
+    video.src = url;
+    document.body.style.overflow = 'hidden';
+}
+
+function closePlayer() {
+    const video = document.getElementById('main-video');
+    video.pause(); video.src = "";
+    document.getElementById('video-player-container').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+async function loadFromUrl() {
+    const url = document.getElementById('m3u-url').value.trim();
+    if (!url) return;
+    try {
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        parseM3U(data.contents);
+        toggleModal(false);
+    } catch (e) { alert("Erro ao carregar lista."); }
+}
+
+function parseM3U(content) {
+    const lines = content.split('\n');
+    const channels = [];
+    let current = {};
+    lines.forEach(line => {
+        if (line.startsWith('#EXTINF:')) {
+            current.name = line.split(',')[1]?.trim();
+            current.group = line.match(/group-title="([^"]+)"/)?.[1] || "Geral";
+            current.logo = line.match(/tvg-logo="([^"]+)"/)?.[1] || "";
+        } else if (line.startsWith('http')) {
+            current.url = line.trim();
+            channels.push(current);
+            current = {};
+        }
+    });
+    allChannels = channels;
+    localStorage.setItem('my_channels', JSON.stringify(channels));
+    switchTab('tv');
+}
+
+function setupHero(data) {
+    if (!data.length) return;
+    const random = data[Math.floor(Math.random() * data.length)];
+    const hero = document.getElementById('hero-featured');
+    document.getElementById('hero-name').innerText = random.name;
+    document.getElementById('hero-play').onclick = () => window.location.href = `intent:${random.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
+    hero.style.backgroundImage = `url('https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1920')`;
+}
