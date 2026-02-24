@@ -125,29 +125,64 @@
                 </button>
             </div>
 
-            <div class="modal-section">
-                <div class="section-label">
-                    <i class="fas fa-list-ul"></i>
-                    <span>Playlist M3U</span>
-                </div>
-                <p class="section-desc">Carrega canais a partir de um URL de playlist M3U (compatível com VLC)</p>
+            <!-- Import tabs -->
+            <div class="import-tabs">
+                <button class="import-tab active" data-tab="url" onclick="switchImportTab('url')">
+                    <i class="fas fa-link"></i> Por URL
+                </button>
+                <button class="import-tab" data-tab="file" onclick="switchImportTab('file')">
+                    <i class="fas fa-file-upload"></i> Ficheiro
+                </button>
+                <button class="import-tab" data-tab="paste" onclick="switchImportTab('paste')">
+                    <i class="fas fa-paste"></i> Colar
+                </button>
+            </div>
+
+            <!-- Tab: URL -->
+            <div class="import-panel active" id="panel-url">
+                <p class="section-desc">Cola o URL da tua playlist M3U. A app tenta vários métodos de download automaticamente.</p>
                 <div class="input-group">
-                    <input type="url" id="m3u-url" placeholder="https://exemplo.com/lista.m3u" autocomplete="off">
+                    <input type="url" id="m3u-url" placeholder="http://servidor.com:8080/get.php?..." autocomplete="off" spellcheck="false">
                 </div>
                 <button class="btn-primary full" id="btn-load-m3u" onclick="loadFromUrl()">
-                    <i class="fas fa-download"></i> Carregar Playlist
+                    <i class="fas fa-download"></i> Descarregar e Importar
                 </button>
                 <div id="m3u-status" class="status-msg" aria-live="polite"></div>
             </div>
 
-            <div class="modal-divider"><span>ou</span></div>
+            <!-- Tab: File -->
+            <div class="import-panel" id="panel-file">
+                <p class="section-desc">Seleciona um ficheiro .m3u ou .m3u8 guardado no teu dispositivo. É o método mais fiável.</p>
+                <label class="file-drop-zone" id="file-drop-zone" for="file-input">
+                    <input type="file" id="file-input" accept=".m3u,.m3u8,.txt" onchange="loadFromFile(this)">
+                    <div class="file-drop-inner">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span class="file-drop-title">Clica para selecionar</span>
+                        <span class="file-drop-sub">ou arrasta o ficheiro aqui</span>
+                        <span class="file-drop-types">.m3u · .m3u8 · .txt</span>
+                    </div>
+                </label>
+                <div id="file-status" class="status-msg" aria-live="polite"></div>
+            </div>
+
+            <!-- Tab: Paste -->
+            <div class="import-panel" id="panel-paste">
+                <p class="section-desc">Cola diretamente o conteúdo do ficheiro M3U (começa com <code>#EXTM3U</code>).</p>
+                <textarea id="paste-content" placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-name=&quot;Canal 1&quot;,Canal 1&#10;http://..."></textarea>
+                <button class="btn-primary full" onclick="loadFromPaste()">
+                    <i class="fas fa-check"></i> Importar Conteúdo
+                </button>
+                <div id="paste-status" class="status-msg" aria-live="polite"></div>
+            </div>
+
+            <div class="modal-divider"><span>livestreams</span></div>
 
             <div class="modal-section">
                 <div class="section-label">
-                    <i class="fas fa-link"></i>
-                    <span>Link Direto / Embed</span>
+                    <i class="fas fa-broadcast-tower"></i>
+                    <span>Adicionar Stream Direto</span>
                 </div>
-                <p class="section-desc">Adiciona um link de stream ou site (carregado no navegador)</p>
+                <p class="section-desc">Link direto ou site embed — abre no navegador</p>
                 <div class="input-group">
                     <input type="url" id="direct-stream-url" placeholder="https://site.com/stream">
                     <input type="text" id="direct-stream-name" placeholder="Nome do canal (opcional)" style="margin-top:8px">
