@@ -17,10 +17,13 @@ const state = {
 const PLACEHOLDER = "https://placehold.co/150x200/111111/444444?text=TV";
 
 // Proxies CORS em ordem de fallback
+// Cada entrada indica como processar a resposta: 'text' ou 'json'
 const CORS_PROXIES = [
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    url => `https://cors-anywhere.herokuapp.com/${url}`,
+    { fn: url => `https://corsproxy.io/?${encodeURIComponent(url)}`,                  mode: 'text' },
+    { fn: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,      mode: 'json' },
+    { fn: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, mode: 'text' },
+    { fn: url => `https://thingproxy.freeboard.io/fetch/${url}`,                       mode: 'text' },
+    { fn: url => `https://yacdn.org/proxy/${url}`,                                     mode: 'text' },
 ];
 
 // ── Arranque ─────────────────────────────────────────────────
@@ -484,10 +487,17 @@ async function loadFromUrl() {
 
     // Tenta primeiro diretamente (sem proxy), depois os proxies
     const attempts = [
-        { label: 'Ligação direta', fetch: () => fetch(url) },
-        ...CORS_PROXIES.map((proxyFn, i) => ({
+        {
+            label: 'Ligação direta',
+            fetch: async () => {
+                const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.text();
+            }
+        },
+        ...CORS_PROXIES.map((proxy, i) => ({
             label: `Proxy ${i + 1}`,
-            fetch: () => fetchViaProxy(proxyFn, url),
+            fetch: () => fetchViaProxy(proxy, url),
         })),
     ];
 
@@ -512,7 +522,11 @@ async function loadFromUrl() {
     btnLoad.disabled = false;
 
     if (!content) {
-        setStatus(`Não foi possível carregar a playlist. ${lastError}`, 'error', 0);
+        setStatus(
+            `Não foi possível carregar a playlist após ${attempts.length} tentativas. ` +
+            `Último erro: ${lastError}. Verifica se o URL está correto e acessível.`,
+            'error', 0
+        );
         showToast('Erro ao carregar playlist', 'error');
         return;
     }
@@ -536,18 +550,28 @@ async function loadFromUrl() {
     }, 1200);
 }
 
-async function fetchViaProxy(proxyFn, url) {
-    const proxyUrl = proxyFn(url);
-    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+async function fetchViaProxy(proxy, url) {
+    const proxyUrl = proxy.fn(url);
+    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(12000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json().catch(() => null);
-    // allorigins devolve { contents: '...' }
-    if (data && typeof data.contents === 'string') return data.contents;
-    // corsproxy.io devolve o texto diretamente
-    return await res.clone().text().catch(() => {
-        if (data) return JSON.stringify(data);
-        return null;
-    });
+
+    // Lê sempre como texto primeiro — nunca consumir o body duas vezes
+    const text = await res.text();
+
+    if (proxy.mode === 'json') {
+        // allorigins devolve { contents: '...texto m3u...' }
+        try {
+            const json = JSON.parse(text);
+            if (json && typeof json.contents === 'string') return json.contents;
+            throw new Error('Resposta JSON sem campo "contents"');
+        } catch (e) {
+            // Se falhar o parse JSON, tenta usar o texto diretamente
+            if (text.trim().startsWith('#EXTM3U')) return text;
+            throw new Error(`Resposta inválida do proxy: ${e.message}`);
+        }
+    }
+
+    return text;
 }
 
 // ── Status do modal ──────────────────────────────────────────
