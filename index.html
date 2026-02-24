@@ -4,78 +4,163 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>StreamLine Premium</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+    <!-- Splash Screen -->
     <div id="splash-screen">
-        <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="splash-logo">
+        <div class="splash-inner">
+            <div class="splash-logo-wrap">
+                <span class="splash-brand">STREAM<span>LINE</span></span>
+            </div>
+            <div class="splash-bar"><div class="splash-fill"></div></div>
+        </div>
     </div>
 
-    <div id="video-player-container" style="display: none;">
-        <div class="player-controls">
-            <button onclick="closePlayer()" class="btn-close-player"><i class="fas fa-arrow-left"></i> Voltar</button>
+    <!-- Video Player -->
+    <div id="video-player-container" aria-hidden="true">
+        <div class="player-topbar">
+            <button class="btn-back" onclick="closePlayer()" aria-label="Voltar">
+                <i class="fas fa-arrow-left"></i>
+                <span>Voltar</span>
+            </button>
+            <span id="player-title" class="player-channel-name"></span>
         </div>
-        
-        <video id="main-video" controls autoplay playsinline style="display: none; width: 100%; height: 100%;"></video>
-        
-        <iframe id="main-iframe" 
-                style="display: none; width: 100%; height: 100%; border: none;" 
-                allowfullscreen 
+        <video id="main-video" controls autoplay playsinline></video>
+        <iframe id="main-iframe"
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                allowfullscreen
                 allow="autoplay; encrypted-media">
         </iframe>
+        <div id="player-spinner" class="player-spinner"><div class="spin-ring"></div></div>
     </div>
 
+    <!-- Header -->
     <header id="main-header">
-        <div class="logo-container" id="logo-btn">
-            <img src="https://escolatv.com/wp-content/uploads/2024/09/Logo-EscolaTV-Picsart.png" class="brand-logo">
-            <i class="fas fa-caret-down logo-arrow"></i>
-            <div class="dropdown-menu" id="dropdown">
-                <div class="menu-item" onclick="toggleModal(true)"><i class="fas fa-cog"></i> Configurar</div>
+        <div class="header-left">
+            <div class="logo-container" id="logo-btn" role="button" tabindex="0" aria-haspopup="true">
+                <span class="brand-logo">STREAM<em>LINE</em></span>
+                <i class="fas fa-caret-down logo-arrow" aria-hidden="true"></i>
+                <div class="dropdown-menu" id="dropdown" role="menu">
+                    <div class="menu-item" onclick="toggleModal(true)" role="menuitem" tabindex="0">
+                        <i class="fas fa-sliders-h"></i> Configurar
+                    </div>
+                    <div class="menu-item danger" onclick="clearAllData()" role="menuitem" tabindex="0">
+                        <i class="fas fa-trash-alt"></i> Apagar Dados
+                    </div>
+                </div>
             </div>
+
+            <nav class="nav-tabs" role="tablist">
+                <button class="tab-item active" id="tab-tv" onclick="switchTab('tv')" role="tab" aria-selected="true">
+                    <i class="fas fa-tv"></i> Televisão
+                </button>
+                <button class="tab-item" id="tab-streams" onclick="switchTab('streams')" role="tab" aria-selected="false">
+                    <i class="fas fa-broadcast-tower"></i> Livestreams
+                </button>
+            </nav>
         </div>
 
-        <nav class="nav-tabs">
-            <div class="tab-item active" id="tab-tv" onclick="switchTab('tv')">Televisão</div>
-            <div class="tab-item" id="tab-streams" onclick="switchTab('streams')">Livestreams</div>
-        </nav>
-
         <div class="header-right">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" id="search-field" placeholder="Pesquisar..." oninput="filterChannels()">
+            <div class="search-box" id="search-box">
+                <button class="search-toggle" onclick="toggleSearch()" aria-label="Pesquisar">
+                    <i class="fas fa-search"></i>
+                </button>
+                <input type="text" id="search-field" placeholder="Títulos, canais..." oninput="filterChannels()" aria-label="Pesquisar canais">
+                <button class="search-clear" id="search-clear" onclick="clearSearch()" aria-label="Limpar pesquisa">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
         </div>
     </header>
 
-    <main class="content">
-        <section id="hero-featured">
+    <!-- Main Content -->
+    <main class="content" id="main-scroll">
+        <section id="hero-featured" aria-label="Destaque">
+            <div class="hero-bg" id="hero-bg"></div>
+            <div class="hero-overlay"></div>
             <div class="hero-content">
+                <div class="hero-badge"><i class="fas fa-circle" style="color:var(--accent);font-size:8px"></i> EM DIRETO</div>
                 <h1 id="hero-name" class="hero-title"></h1>
-                <button id="hero-play" class="btn-play"><i class="fas fa-play"></i> Assistir Agora</button>
+                <p id="hero-group" class="hero-group"></p>
+                <div class="hero-actions">
+                    <button id="hero-play" class="btn-hero-play">
+                        <i class="fas fa-play"></i> Assistir Agora
+                    </button>
+                    <button id="hero-info" class="btn-hero-info">
+                        <i class="fas fa-info-circle"></i> Detalhes
+                    </button>
+                </div>
             </div>
         </section>
-
         <div id="main-content"></div>
     </main>
 
-    <div id="config-modal">
-        <div class="modal-content">
-            <h2>Configurar</h2>
-            <p class="modal-label">Lista M3U (VLC)</p>
-            <input type="text" id="m3u-url" placeholder="URL da Playlist">
-            <button class="btn-main" onclick="loadFromUrl()">CARREGAR LISTA</button>
-            
-            <div class="divider">ou</div>
-
-            <p class="modal-label">Link Direto ou Embed (Navegador)</p>
-            <input type="text" id="direct-stream-url" placeholder="URL da Stream/Site">
-            <button class="btn-main" style="background: #28a745" onclick="addDirectStream()">ADICIONAR ÀS LIVESTREAMS</button>
-
-            <button class="btn-main" style="background:#333; margin-top:20px" onclick="toggleModal(false)">FECHAR</button>
+    <!-- Empty State -->
+    <div id="empty-state" style="display:none;">
+        <div class="empty-inner">
+            <div class="empty-icon"><i class="fas fa-satellite-dish"></i></div>
+            <h2>Sem conteúdo</h2>
+            <p>Adiciona uma playlist M3U ou um link direto para começar.</p>
+            <button class="btn-primary" onclick="toggleModal(true)">
+                <i class="fas fa-plus"></i> Configurar Agora
+            </button>
         </div>
     </div>
+
+    <!-- Config Modal -->
+    <div id="config-modal" role="dialog" aria-modal="true" aria-label="Configurações">
+        <div class="modal-backdrop" onclick="toggleModal(false)"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Configurações</h2>
+                <button class="modal-close" onclick="toggleModal(false)" aria-label="Fechar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-section">
+                <div class="section-label">
+                    <i class="fas fa-list-ul"></i>
+                    <span>Playlist M3U</span>
+                </div>
+                <p class="section-desc">Carrega canais a partir de um URL de playlist M3U (compatível com VLC)</p>
+                <div class="input-group">
+                    <input type="url" id="m3u-url" placeholder="https://exemplo.com/lista.m3u" autocomplete="off">
+                </div>
+                <button class="btn-primary full" id="btn-load-m3u" onclick="loadFromUrl()">
+                    <i class="fas fa-download"></i> Carregar Playlist
+                </button>
+                <div id="m3u-status" class="status-msg" aria-live="polite"></div>
+            </div>
+
+            <div class="modal-divider"><span>ou</span></div>
+
+            <div class="modal-section">
+                <div class="section-label">
+                    <i class="fas fa-link"></i>
+                    <span>Link Direto / Embed</span>
+                </div>
+                <p class="section-desc">Adiciona um link de stream ou site (carregado no navegador)</p>
+                <div class="input-group">
+                    <input type="url" id="direct-stream-url" placeholder="https://site.com/stream">
+                    <input type="text" id="direct-stream-name" placeholder="Nome do canal (opcional)" style="margin-top:8px">
+                </div>
+                <button class="btn-secondary full" onclick="addDirectStream()">
+                    <i class="fas fa-plus"></i> Adicionar às Livestreams
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" aria-live="assertive"></div>
 
     <script src="app.js"></script>
 </body>
