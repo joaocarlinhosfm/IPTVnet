@@ -1,23 +1,30 @@
 {
-  "name": "StreamLine TV",
+  "name": "StreamLine Premium",
   "short_name": "StreamLine",
+  "description": "A sua experiência IPTV Premium",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "orientation": "portrait",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "orientation": "any",
   "icons": [
     {
       "src": "https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "https://i.ibb.co/qMmXRHcP/10314-Picsart-Background-Remover.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
