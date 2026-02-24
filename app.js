@@ -16,21 +16,12 @@ const state = {
 
 const PLACEHOLDER = "https://placehold.co/150x200/111111/444444?text=TV";
 
-// Proxies CORS em ordem de fallback
-// Cada entrada indica como processar a resposta: 'text' ou 'json'
-const CORS_PROXIES = [
-    { fn: url => `https://corsproxy.io/?${encodeURIComponent(url)}`,                  mode: 'text' },
-    { fn: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,      mode: 'json' },
-    { fn: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, mode: 'text' },
-    { fn: url => `https://thingproxy.freeboard.io/fetch/${url}`,                       mode: 'text' },
-    { fn: url => `https://yacdn.org/proxy/${url}`,                                     mode: 'text' },
-];
-
 // ── Arranque ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     setupLogoMenu();
     setupScrollHeader();
     setupKeyboard();
+    setupFileDrop();
     addHeaderGradient();
 
     if (state.channels.length > 0 || state.streams.length > 0) {
@@ -40,6 +31,22 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => toggleModal(true), 800);
     }
 });
+
+// ── Drag & Drop no ficheiro ───────────────────────────────────
+function setupFileDrop() {
+    const zone = document.getElementById('file-drop-zone');
+    if (!zone) return;
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        const fakeInput = { files: [file] };
+        loadFromFile(fakeInput);
+    });
+}
 
 // ── Utilitários ──────────────────────────────────────────────
 function safeParseJSON(str, fallback) {
@@ -464,119 +471,212 @@ function deleteStream(index) {
     showToast(`"${name}" removido`, 'info');
 }
 
-// ── Carregar M3U com múltiplos proxies de fallback ───────────
+// ── Tabs do modal de importação ──────────────────────────────
+function switchImportTab(tab) {
+    document.querySelectorAll('.import-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === tab);
+    });
+    document.querySelectorAll('.import-panel').forEach(el => {
+        el.classList.toggle('active', el.id === `panel-${tab}`);
+    });
+}
+
+// ── Carregar M3U por URL ─────────────────────────────────────
 async function loadFromUrl() {
     const urlInput = document.getElementById('m3u-url');
     const btnLoad  = document.getElementById('btn-load-m3u');
     const url      = urlInput.value.trim();
 
-    if (!url) {
-        showStatus('Por favor insere um URL de playlist.', 'error');
-        return;
-    }
-    if (!isValidUrl(url)) {
-        showStatus('URL inválido — deve começar por https:// ou http://', 'error');
-        return;
-    }
+    if (!url) { setStatus('m3u-status', 'Insere o URL da playlist.', 'error'); return; }
+    if (!isValidUrl(url)) { setStatus('m3u-status', 'URL inválido — deve começar por http:// ou https://', 'error'); return; }
 
     btnLoad.disabled = true;
-    setStatus('A tentar carregar a playlist...', 'loading', 10);
 
-    let content = null;
-    let lastError = '';
-
-    // Tenta primeiro diretamente (sem proxy), depois os proxies
-    const attempts = [
+    // Lista de estratégias de download
+    const strategies = [
         {
-            label: 'Ligação direta',
-            fetch: async () => {
-                const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.text();
+            label: 'Download direto',
+            run: async () => {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), 12000);
+                try {
+                    const res = await fetch(url, {
+                        signal: ctrl.signal,
+                        cache: 'no-cache',
+                    });
+                    clearTimeout(timer);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return await res.text();
+                } catch (e) {
+                    clearTimeout(timer);
+                    throw e;
+                }
             }
         },
-        ...CORS_PROXIES.map((proxy, i) => ({
-            label: `Proxy ${i + 1}`,
-            fetch: () => fetchViaProxy(proxy, url),
-        })),
+        {
+            label: 'Proxy corsproxy.io',
+            run: () => fetchProxy(`https://corsproxy.io/?${encodeURIComponent(url)}`, 'text'),
+        },
+        {
+            label: 'Proxy allorigins',
+            run: () => fetchProxy(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 'allorigins'),
+        },
+        {
+            label: 'Proxy codetabs',
+            run: () => fetchProxy(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, 'text'),
+        },
+        {
+            label: 'Proxy thingproxy',
+            run: () => fetchProxy(`https://thingproxy.freeboard.io/fetch/${url}`, 'text'),
+        },
     ];
 
-    for (let i = 0; i < attempts.length; i++) {
-        const attempt = attempts[i];
-        const progress = Math.round(((i + 1) / attempts.length) * 85);
-        setStatus(`A tentar: ${attempt.label}...`, 'loading', progress);
+    let content = null;
+    let errors  = [];
+
+    for (let i = 0; i < strategies.length; i++) {
+        const s = strategies[i];
+        const pct = Math.round(((i + 0.5) / strategies.length) * 90);
+        setStatus('m3u-status', `A tentar: ${s.label}…`, 'loading', pct);
 
         try {
-            const text = await attempt.fetch();
-            if (text && text.trim().startsWith('#EXTM3U')) {
+            const text = await s.run();
+            if (!text || !text.trim()) throw new Error('Resposta vazia');
+
+            // Aceita mesmo sem cabeçalho #EXTM3U (alguns servidores não enviam)
+            if (text.trim().startsWith('#EXTM3U') || text.includes('#EXTINF')) {
                 content = text;
                 break;
-            } else if (text) {
-                lastError = 'O servidor respondeu mas o conteúdo não é uma lista M3U válida.';
+            } else {
+                // Log para debug
+                console.warn(`[${s.label}] Conteúdo não reconhecido:`, text.slice(0, 200));
+                errors.push(`${s.label}: conteúdo não é M3U`);
             }
         } catch (e) {
-            lastError = e.message || 'Erro de rede';
+            console.warn(`[${s.label}] Falhou:`, e.message);
+            errors.push(`${s.label}: ${e.message}`);
         }
     }
 
     btnLoad.disabled = false;
 
     if (!content) {
-        setStatus(
-            `Não foi possível carregar a playlist após ${attempts.length} tentativas. ` +
-            `Último erro: ${lastError}. Verifica se o URL está correto e acessível.`,
+        console.error('Todos os proxies falharam:', errors);
+        setStatus('m3u-status',
+            `Não foi possível descarregar a playlist após ${strategies.length} tentativas. ` +
+            `Tenta usar a aba "Ficheiro" ou "Colar" para importar diretamente.`,
             'error', 0
         );
-        showToast('Erro ao carregar playlist', 'error');
         return;
     }
 
-    setStatus('A processar canais...', 'loading', 95);
-    const channels = parseM3U(content);
-
-    if (channels.length === 0) {
-        setStatus('A playlist está vazia ou sem canais reconhecíveis.', 'error', 0);
-        return;
-    }
-
-    state.channels = channels;
-    localStorage.setItem('sl_channels', JSON.stringify(channels));
-    setStatus(`✓ ${channels.length} canais carregados com sucesso!`, 'success', 100);
-    showToast(`${channels.length} canais importados!`, 'success', 4000);
-
-    setTimeout(() => {
-        toggleModal(false);
-        switchTab('tv');
-    }, 1200);
+    processM3UContent(content, 'm3u-status');
 }
 
-async function fetchViaProxy(proxy, url) {
-    const proxyUrl = proxy.fn(url);
-    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(12000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+// Fetch via proxy com timeout manual
+async function fetchProxy(proxyUrl, mode) {
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    try {
+        const res = await fetch(proxyUrl, { signal: ctrl.signal, cache: 'no-cache' });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    // Lê sempre como texto primeiro — nunca consumir o body duas vezes
-    const text = await res.text();
+        const text = await res.text();
 
-    if (proxy.mode === 'json') {
-        // allorigins devolve { contents: '...texto m3u...' }
-        try {
-            const json = JSON.parse(text);
-            if (json && typeof json.contents === 'string') return json.contents;
-            throw new Error('Resposta JSON sem campo "contents"');
-        } catch (e) {
-            // Se falhar o parse JSON, tenta usar o texto diretamente
-            if (text.trim().startsWith('#EXTM3U')) return text;
-            throw new Error(`Resposta inválida do proxy: ${e.message}`);
+        if (mode === 'allorigins') {
+            // allorigins devolve JSON: { contents: "..." }
+            try {
+                const json = JSON.parse(text);
+                if (json && typeof json.contents === 'string') return json.contents;
+            } catch {}
+            // Se falhou o parse, usa o texto tal como está
+            return text;
         }
-    }
 
-    return text;
+        return text; // 'text' — devolve diretamente
+    } catch (e) {
+        clearTimeout(timer);
+        throw e;
+    }
+}
+
+// ── Carregar M3U por ficheiro ────────────────────────────────
+function loadFromFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const zone = document.getElementById('file-drop-zone');
+    const icon = zone.querySelector('i');
+    icon.className = 'fas fa-spinner fa-spin';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        icon.className = 'fas fa-cloud-upload-alt';
+        const content = e.target.result;
+        if (!content || (!content.includes('#EXTINF') && !content.trim().startsWith('#EXTM3U'))) {
+            setStatus('file-status', 'O ficheiro não parece ser uma playlist M3U válida.', 'error');
+            return;
+        }
+        processM3UContent(content, 'file-status');
+    };
+    reader.onerror = () => {
+        icon.className = 'fas fa-cloud-upload-alt';
+        setStatus('file-status', 'Erro ao ler o ficheiro.', 'error');
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+
+// ── Carregar M3U por colagem de texto ────────────────────────
+function loadFromPaste() {
+    const content = document.getElementById('paste-content').value.trim();
+    if (!content) {
+        setStatus('paste-status', 'Cola o conteúdo M3U antes de importar.', 'error');
+        return;
+    }
+    if (!content.includes('#EXTINF') && !content.startsWith('#EXTM3U')) {
+        setStatus('paste-status', 'O conteúdo não parece ser uma playlist M3U válida.', 'error');
+        return;
+    }
+    processM3UContent(content, 'paste-status');
+}
+
+// ── Processar conteúdo M3U (ponto de entrada comum) ──────────
+function processM3UContent(content, statusId) {
+    setStatus(statusId, 'A processar canais…', 'loading', 95);
+
+    // Delay mínimo para o browser renderizar o status
+    setTimeout(() => {
+        const channels = parseM3U(content);
+
+        if (channels.length === 0) {
+            setStatus(statusId, 'A playlist não contém canais reconhecíveis.', 'error', 0);
+            return;
+        }
+
+        state.channels = channels;
+        try {
+            localStorage.setItem('sl_channels', JSON.stringify(channels));
+        } catch (e) {
+            // localStorage cheio — guarda só os primeiros 500
+            localStorage.setItem('sl_channels', JSON.stringify(channels.slice(0, 500)));
+            showToast('Lista grande: guardados os primeiros 500 canais', 'info', 5000);
+        }
+
+        setStatus(statusId, `✓ ${channels.length} canais importados com sucesso!`, 'success', 100);
+        showToast(`${channels.length} canais importados!`, 'success', 4000);
+
+        setTimeout(() => {
+            toggleModal(false);
+            switchTab('tv');
+        }, 1000);
+    }, 50);
 }
 
 // ── Status do modal ──────────────────────────────────────────
-function setStatus(msg, type = '', progress = 0) {
-    const el = document.getElementById('m3u-status');
+function setStatus(elementId, msg, type = '', progress = 0) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
     if (!msg) { el.innerHTML = ''; el.className = 'status-msg'; return; }
 
     const progressBar = type === 'loading' ? `
@@ -588,8 +688,8 @@ function setStatus(msg, type = '', progress = 0) {
     el.className = `status-msg ${type}`;
 }
 
-// Alias para compatibilidade
-function showStatus(msg, type) { setStatus(msg, type, 0); }
+// Alias antigo para compatibilidade
+function showStatus(msg, type) { setStatus('m3u-status', msg, type, 0); }
 
 // ── Parsear M3U ──────────────────────────────────────────────
 function parseM3U(content) {
