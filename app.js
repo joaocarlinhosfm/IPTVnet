@@ -338,79 +338,57 @@ async function openMatch(match) {
     }
 }
 
-// Campos de stream conhecidos (por ordem de prioridade)
-const STREAM_FIELDS = ['embed', 'iframe', 'stream', 'video', 'src', 'link', 'url'];
-// Campos de imagem a IGNORAR explicitamente
-const IMAGE_FIELDS  = ['poster', 'thumbnail', 'image', 'img', 'badge', 'logo', 'icon', 'photo', 'banner', 'background', 'cover'];
-
-function isStreamUrl(url) {
-    if (!url || typeof url !== 'string') return false;
-    if (!url.startsWith('http')) return false;
-    // Rejeita extensões de imagem
-    if (/\.(jpg|jpeg|png|gif|webp|svg|ico)(\?|$)/i.test(url)) return false;
-    return true;
-}
-
-function getUrl(s) {
-    if (!s) return '';
-    if (typeof s === 'string') return isStreamUrl(s) ? s : '';
-    // Só olha para campos conhecidos de stream, NUNCA para campos de imagem
-    for (const f of STREAM_FIELDS) {
-        if (s[f] && isStreamUrl(s[f])) return s[f];
-    }
-    return '';
-}
+// Formato confirmado da API SportSRC:
+// { success, data: { sources: [ { streamNo, hd, language, embedUrl, source, viewers } ] } }
 
 function extractSources(json) {
     if (!json) return [];
 
-    // Normaliza: se vier {success, data}, desce para data
-    const root = (json && json.data !== undefined) ? json.data : json;
+    // Desce para data se existir
+    const root = (json.data !== undefined) ? json.data : json;
+    if (!root) return [];
 
-    // Caso 1: root é array de streams directamente
-    if (Array.isArray(root) && root.length) {
-        const valid = root.map((s, i) => ({
-            name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
-            url: getUrl(s)
-        })).filter(s => s.url);
-        if (valid.length) return valid;
+    // Formato real: root.sources[]  com campo embedUrl
+    if (Array.isArray(root.sources) && root.sources.length) {
+        return root.sources
+            .filter(s => s && s.embedUrl)
+            .map((s, i) => ({
+                name: buildSourceName(s, i),
+                url: s.embedUrl
+            }));
     }
 
-    if (!root || typeof root !== 'object') return [];
-
-    // Caso 2: root.streams é array
+    // Fallbacks para outros formatos possíveis
     if (Array.isArray(root.streams) && root.streams.length) {
-        const valid = root.streams.map((s, i) => ({
-            name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
-            url: getUrl(s)
-        })).filter(s => s.url);
-        if (valid.length) return valid;
+        return root.streams
+            .filter(s => s && (s.embedUrl || s.url || s.embed || s.src))
+            .map((s, i) => ({
+                name: buildSourceName(s, i),
+                url: s.embedUrl || s.url || s.embed || s.src
+            }));
     }
 
-    // Caso 3: URL de stream num campo directo do root (ignora campos de imagem)
-    for (const f of STREAM_FIELDS) {
-        if (IMAGE_FIELDS.includes(f)) continue;
-        if (isStreamUrl(root[f])) return [{ name: 'Stream 1', url: root[f] }];
+    // Array directo na raiz
+    if (Array.isArray(root) && root.length && root[0]?.embedUrl) {
+        return root
+            .filter(s => s && s.embedUrl)
+            .map((s, i) => ({ name: buildSourceName(s, i), url: s.embedUrl }));
     }
 
-    // Caso 4: procura em sub-objectos (ex: root.match.embed)
-    for (const [key, val] of Object.entries(root)) {
-        if (IMAGE_FIELDS.includes(key)) continue; // ignora campos de imagem
-        if (val && typeof val === 'object' && !Array.isArray(val)) {
-            for (const f of STREAM_FIELDS) {
-                if (isStreamUrl(val[f])) return [{ name: 'Stream 1', url: val[f] }];
-            }
-        }
-        if (Array.isArray(val) && val.length && val[0] && getUrl(val[0])) {
-            const valid = val.map((s, i) => ({
-                name: typeof s === 'object' ? (s.name || s.label || `Fonte ${i+1}`) : `Fonte ${i+1}`,
-                url: getUrl(s)
-            })).filter(s => s.url);
-            if (valid.length) return valid;
-        }
+    // URL única directa
+    const single = root.embedUrl || root.embed || root.url || root.iframe || root.src;
+    if (single && typeof single === 'string' && single.startsWith('http')) {
+        return [{ name: 'Stream 1', url: single }];
     }
 
     return [];
+}
+
+function buildSourceName(s, i) {
+    const num = s.streamNo || (i + 1);
+    const hd  = s.hd ? ' HD' : '';
+    const lang = s.language ? ` · ${s.language.toUpperCase()}` : '';
+    return `Fonte ${num}${hd}${lang}`;
 }
 
 function buildSourceButtons(sources) {
