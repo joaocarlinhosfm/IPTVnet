@@ -338,73 +338,79 @@ async function openMatch(match) {
     }
 }
 
-// Extrai array de fontes de QUALQUER formato/nível da resposta da API
-function extractSources(json) {
-    if (!json) return [];
+// Campos de stream conhecidos (por ordem de prioridade)
+const STREAM_FIELDS = ['embed', 'iframe', 'stream', 'video', 'src', 'link', 'url'];
+// Campos de imagem a IGNORAR explicitamente
+const IMAGE_FIELDS  = ['poster', 'thumbnail', 'image', 'img', 'badge', 'logo', 'icon', 'photo', 'banner', 'background', 'cover'];
 
-    // Percorre todos os "níveis" possíveis: json directo, json.data, json.data.streams, etc.
-    const candidates = [json];
-    if (json.data !== undefined) candidates.push(json.data);
-    if (json.data && json.data.streams) candidates.push(json.data.streams);
-    if (json.streams) candidates.push(json.streams);
-
-    for (const data of candidates) {
-        if (!data) continue;
-
-        // Array de streams: [{name, url/embed/...}, ...]
-        if (Array.isArray(data) && data.length) {
-            const valid = data.filter(s => s && getUrl(s));
-            if (valid.length) {
-                return valid.map((s, i) => ({
-                    name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
-                    url: getUrl(s)
-                }));
-            }
-        }
-
-        if (typeof data !== 'object' || Array.isArray(data)) continue;
-
-        // streams[] dentro do objecto
-        if (Array.isArray(data.streams) && data.streams.length) {
-            const valid = data.streams.filter(s => s && getUrl(s));
-            if (valid.length) return valid.map((s, i) => ({
-                name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
-                url: getUrl(s)
-            }));
-        }
-
-        // URL directa no objecto
-        const direct = data.embed || data.url || data.iframe || data.src || data.link || data.stream || data.video;
-        if (direct && typeof direct === 'string' && direct.startsWith('http')) {
-            return [{ name: 'Stream 1', url: direct }];
-        }
-
-        // String directa
-        if (typeof data === 'string' && data.startsWith('http')) {
-            return [{ name: 'Stream 1', url: data }];
-        }
-
-        // Procura em TODOS os campos do objecto (qualquer nome de campo com URL)
-        for (const val of Object.values(data)) {
-            if (typeof val === 'string' && val.length > 10 && val.startsWith('http')) {
-                return [{ name: 'Stream 1', url: val }];
-            }
-            if (Array.isArray(val) && val.length && val[0] && getUrl(val[0])) {
-                return val.map((s, i) => ({
-                    name: (typeof s === 'object' ? (s.name || s.label || `Fonte ${i+1}`) : `Fonte ${i+1}`),
-                    url: getUrl(s)
-                })).filter(s => s.url);
-            }
-        }
-    }
-
-    return [];
+function isStreamUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    if (!url.startsWith('http')) return false;
+    // Rejeita extensões de imagem
+    if (/\.(jpg|jpeg|png|gif|webp|svg|ico)(\?|$)/i.test(url)) return false;
+    return true;
 }
 
 function getUrl(s) {
     if (!s) return '';
-    if (typeof s === 'string') return s.startsWith('http') ? s : '';
-    return s.url || s.embed || s.iframe || s.src || s.link || s.stream || '';
+    if (typeof s === 'string') return isStreamUrl(s) ? s : '';
+    // Só olha para campos conhecidos de stream, NUNCA para campos de imagem
+    for (const f of STREAM_FIELDS) {
+        if (s[f] && isStreamUrl(s[f])) return s[f];
+    }
+    return '';
+}
+
+function extractSources(json) {
+    if (!json) return [];
+
+    // Normaliza: se vier {success, data}, desce para data
+    const root = (json && json.data !== undefined) ? json.data : json;
+
+    // Caso 1: root é array de streams directamente
+    if (Array.isArray(root) && root.length) {
+        const valid = root.map((s, i) => ({
+            name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
+            url: getUrl(s)
+        })).filter(s => s.url);
+        if (valid.length) return valid;
+    }
+
+    if (!root || typeof root !== 'object') return [];
+
+    // Caso 2: root.streams é array
+    if (Array.isArray(root.streams) && root.streams.length) {
+        const valid = root.streams.map((s, i) => ({
+            name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
+            url: getUrl(s)
+        })).filter(s => s.url);
+        if (valid.length) return valid;
+    }
+
+    // Caso 3: URL de stream num campo directo do root (ignora campos de imagem)
+    for (const f of STREAM_FIELDS) {
+        if (IMAGE_FIELDS.includes(f)) continue;
+        if (isStreamUrl(root[f])) return [{ name: 'Stream 1', url: root[f] }];
+    }
+
+    // Caso 4: procura em sub-objectos (ex: root.match.embed)
+    for (const [key, val] of Object.entries(root)) {
+        if (IMAGE_FIELDS.includes(key)) continue; // ignora campos de imagem
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+            for (const f of STREAM_FIELDS) {
+                if (isStreamUrl(val[f])) return [{ name: 'Stream 1', url: val[f] }];
+            }
+        }
+        if (Array.isArray(val) && val.length && val[0] && getUrl(val[0])) {
+            const valid = val.map((s, i) => ({
+                name: typeof s === 'object' ? (s.name || s.label || `Fonte ${i+1}`) : `Fonte ${i+1}`,
+                url: getUrl(s)
+            })).filter(s => s.url);
+            if (valid.length) return valid;
+        }
+    }
+
+    return [];
 }
 
 function buildSourceButtons(sources) {
