@@ -1,11 +1,11 @@
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════
-   StreamLine Sports — app.js
+   StreamLine Sports - app.js
    API confirmada: api.sportsrc.org (sem login, sem chave)
-   /?data=sports       → { success:true, data:[{id,name}] }
-   /?data=matches&category=football → { success:true, data:[...] }
-   /?data=detail&category=X&id=Y   → { success:true, data:{...} }
+   /?data=sports       -> { success:true, data:[{id,name}] }
+   /?data=matches&category=football -> { success:true, data:[...] }
+   /?data=detail&category=X&id=Y   -> { success:true, data:{...} }
 ════════════════════════════════════════════════════════════ */
 
 const API_BASE = 'https://api.sportsrc.org/';
@@ -259,7 +259,7 @@ function setupHero(match) {
         `${esc(home)}<span class="hero-vs">VS</span>${esc(away)}`;
     document.getElementById('hero-league').textContent = '';
     document.getElementById('hero-time').textContent =
-        live ? '🔴 Ao vivo agora' : fmtDate(match.date);
+        live ? ' Ao vivo agora' : fmtDate(match.date);
 
     const bg = document.getElementById('hero-bg');
     const img = match.poster || BG_IMAGES[activeCat] || BG_IMAGES.default;
@@ -291,7 +291,7 @@ function renderLiveBar(liveList) {
     bar.style.display = 'flex';
 }
 
-/* ─── Abrir jogo → streams ────────────────────────────────── */
+/* ─── Abrir jogo -> streams ────────────────────────────────── */
 async function openMatch(match) {
     const home = teamName(match.teams?.home);
     const away = teamName(match.teams?.away);
@@ -313,7 +313,7 @@ async function openMatch(match) {
         const matchCat = (match.category || activeCat     || 'football').toString().trim();
 
         if (!matchId || !matchCat) {
-            throw new Error(`Parâmetros inválidos — id="${matchId}" category="${matchCat}"`);
+            throw new Error(`Parâmetros inválidos - id="${matchId}" category="${matchCat}"`);
         }
 
         const url = `${API_BASE}?data=detail&category=${encodeURIComponent(matchCat)}&id=${encodeURIComponent(matchId)}`;
@@ -395,7 +395,7 @@ function extractSources(json) {
 function buildSourceName(s, i) {
     const num = s.streamNo || (i + 1);
     const hd  = s.hd ? ' HD' : '';
-    const lang = s.language ? ` · ${s.language.toUpperCase()}` : '';
+    const lang = s.language ? ` . ${s.language.toUpperCase()}` : '';
     return `Fonte ${num}${hd}${lang}`;
 }
 
