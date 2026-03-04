@@ -1,4 +1,4 @@
-'use strict';
+a'use strict';
 
 /* ═══════════════════════════════════════════════════════════
    StreamLine Sports — app.js
@@ -515,4 +515,3 @@ window.toggleSearch  = () => {
     box.classList.toggle('expanded') ? field.focus() : (field.value = '', onSearch());
 };
 window.refreshData   = () => loadMatches(activeCat);
-,
