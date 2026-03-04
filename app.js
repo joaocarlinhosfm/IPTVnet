@@ -1,722 +1,419 @@
 'use strict';
 
-/* ══════════════════════════════════════════════
-   STREAMLINE SPORTS — APP.JS
-   API: SportSRC (api.sportsrc.org)
-══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   StreamLine Sports — app.js
+   API confirmada: api.sportsrc.org (sem login, sem chave)
+   /?data=sports       → { success:true, data:[{id,name}] }
+   /?data=matches&category=football → { success:true, data:[...] }
+   /?data=detail&category=X&id=Y   → { success:true, data:{...} }
+════════════════════════════════════════════════════════════ */
 
 const API_BASE = 'https://api.sportsrc.org/';
-const API_KEY  = '7584c81c8ebc7653fb9bf17fb789ee05';
 
-// Ícones por categoria
 const SPORT_ICONS = {
-    football:    'fa-futbol',
-    basketball:  'fa-basketball-ball',
-    tennis:      'fa-table-tennis',
-    baseball:    'fa-baseball-ball',
-    hockey:      'fa-hockey-puck',
-    mma:         'fa-fist-raised',
-    ufc:         'fa-fist-raised',
-    boxing:      'fa-boxing-glove',
-    rugby:       'fa-football-ball',
-    cricket:     'fa-cricket',
-    volleyball:  'fa-volleyball-ball',
-    golf:        'fa-golf-ball',
-    motorsport:  'fa-flag-checkered',
-    f1:          'fa-flag-checkered',
-    cycling:     'fa-bicycle',
-    default:     'fa-trophy',
+    football:       'fa-futbol',
+    basketball:     'fa-basketball-ball',
+    tennis:         'fa-table-tennis',
+    baseball:       'fa-baseball-ball',
+    hockey:         'fa-hockey-puck',
+    fight:          'fa-fist-raised',
+    rugby:          'fa-football-ball',
+    cricket:        'fa-cricket',
+    golf:           'fa-golf-ball',
+    'motor-sports': 'fa-flag-checkered',
+    olympics:       'fa-medal',
+    afl:            'fa-football-ball',
+    darts:          'fa-bullseye',
+    billiards:      'fa-circle',
+    other:          'fa-trophy',
 };
 
-// Imagens hero por desporto
-const SPORT_BGSRC = {
+const BG_IMAGES = {
     football:   'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200',
     basketball: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1200',
     tennis:     'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?q=80&w=1200',
-    mma:        'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=1200',
-    boxing:     'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?q=80&w=1200',
+    fight:      'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=1200',
     default:    'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200',
 };
 
-const state = {
-    sports:       [],
-    activeTab:    null,
-    matches:      [],
-    streams:      safeJSON(localStorage.getItem('sl_streams'), []),
-    currentMatch: null,
-    currentSources: [],
-};
+// Estado global mínimo
+let activeCat = 'football';
+let allMatches = [];
 
-/* ══ Utilitários ══════════════════════════════ */
-function safeJSON(str, fb) { try { return str ? JSON.parse(str) : fb; } catch { return fb; } }
-function sanitize(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
-function isValidUrl(url) { try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; } }
-
-/* ══ API ══════════════════════════════════════ */
-async function apiFetch(params) {
-    const url = new URL(API_BASE);
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-    // Nota: API é gratuita e funciona sem chave; a chave é opcional
-    if (API_KEY) url.searchParams.set('key', API_KEY);
-
-    const res = await fetch(url.toString(), { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
-
-    // Lê sempre como texto primeiro — evita erros de content-type incorreto
-    const text = await res.text();
-    if (!text || !text.trim()) throw new Error('Resposta vazia da API');
-
-    try {
-        return JSON.parse(text);
-    } catch {
-        throw new Error('A API não devolveu JSON válido');
-    }
+/* ─── Utilitários ─────────────────────────────────────────── */
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = (s == null ? '' : String(s));
+    return d.innerHTML;
 }
 
-/* ══ Arranque ══════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-    setupScrollHeader();
-    addHeaderGradient();
-    setupKeyboard();
-    loadSports();
-});
-
-function addHeaderGradient() {
-    const g = document.createElement('div');
-    g.className = 'header-gradient';
-    document.body.appendChild(g);
+function teamName(teamObj) {
+    return (teamObj && teamObj.name) ? teamObj.name : '?';
 }
 
-function setupScrollHeader() {
-    const h = document.getElementById('main-header');
-    document.getElementById('main-scroll').addEventListener('scroll', () => {
-        h.classList.toggle('scrolled', document.getElementById('main-scroll').scrollTop > 30);
-    }, { passive: true });
-}
-
-function setupKeyboard() {
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { closePlayer(); toggleModal(false); }
+function fmtDate(ms) {
+    if (!ms) return 'Em breve';
+    return new Date(ms).toLocaleString('pt-PT', {
+        weekday:'short', day:'2-digit', month:'short',
+        hour:'2-digit', minute:'2-digit'
     });
 }
 
-/* ══ Carregar desportos (tabs) ════════════════ */
-async function loadSports() {
-    try {
-        const data = await apiFetch({ data: 'sports' });
-
-        // API devolve { success: true, data: [{id:"football", name:"Football"}, ...] }
-        let sports = [];
-        if (data && data.success && Array.isArray(data.data)) {
-            sports = data.data;
-        } else if (Array.isArray(data)) {
-            sports = data;
-        }
-
-        if (!sports.length) throw new Error('Lista de desportos vazia');
-
-        state.sports = sports;
-        renderTabs(sports);
-
-        // Abre futebol por defeito
-        switchSport('football');
-
-    } catch (e) {
-        console.error('loadSports erro:', e);
-        // Fallback com categorias fixas conhecidas da API
-        const fallback = [
-            { id: 'football',    name: 'Football'   },
-            { id: 'basketball',  name: 'Basketball' },
-            { id: 'tennis',      name: 'Tennis'     },
-            { id: 'fight',       name: 'Fight / UFC'},
-            { id: 'hockey',      name: 'Hockey'     },
-        ];
-        state.sports = fallback;
-        renderTabs(fallback);
-        switchSport('football');
-    }
+function isLive(ms) {
+    if (!ms) return false;
+    const now = Date.now();
+    return ms <= now && ms >= now - 3 * 60 * 60 * 1000;
 }
 
-function renderTabs(sports) {
+/* ─── API ─────────────────────────────────────────────────── */
+async function apiGet(params) {
+    const url = new URL(API_BASE);
+    for (const [k, v] of Object.entries(params)) {
+        url.searchParams.set(k, v);
+    }
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); } catch { throw new Error('JSON inválido'); }
+    if (!json.success) throw new Error('API: success=false');
+    return json.data;   // devolve sempre json.data diretamente
+}
+
+/* ─── Arranque ────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', init);
+
+function init() {
+    document.getElementById('search-field').addEventListener('input', onSearch);
+    loadCategories();
+}
+
+/* ─── Carregar categorias / tabs ──────────────────────────── */
+async function loadCategories() {
+    document.getElementById('sport-tabs').innerHTML =
+        '<div class="tabs-loading"><div class="tab-ghost"></div><div class="tab-ghost"></div><div class="tab-ghost"></div></div>';
+
+    let cats;
+    try {
+        cats = await apiGet({ data: 'sports' });
+        // cats = [{id:"football", name:"Football"}, ...]
+        if (!Array.isArray(cats) || !cats.length) throw new Error('lista vazia');
+    } catch (e) {
+        console.warn('Fallback categorias:', e.message);
+        cats = [
+            { id: 'football',   name: 'Football'   },
+            { id: 'basketball', name: 'Basketball' },
+            { id: 'tennis',     name: 'Tennis'     },
+            { id: 'fight',      name: 'Fight / UFC'},
+            { id: 'hockey',     name: 'Hockey'     },
+        ];
+    }
+
+    renderTabs(cats);
+    loadMatches('football');   // abre futebol por defeito
+}
+
+function renderTabs(cats) {
     const nav = document.getElementById('sport-tabs');
     nav.innerHTML = '';
-
-    const extraSports = [...sports, { name: 'Livestreams', id: '_streams', icon: 'fa-broadcast-tower' }];
-
-    extraSports.forEach((sport, i) => {
-        // API usa campo 'id' (ex: "football"), não "category"
-        const cat  = (sport.id || sport.category || sport.slug || sport.name || '').toLowerCase();
-        const name = sport.name || cat;
-        const icon = sport.icon || SPORT_ICONS[cat] || SPORT_ICONS.default;
-
+    cats.forEach((cat, i) => {
         const btn = document.createElement('button');
-        btn.className = 'sport-tab';
-        btn.id = `tab-${cat}`;
-        btn.setAttribute('role', 'tab');
-        btn.dataset.cat = cat;
-        btn.innerHTML = `<i class="fas ${icon}"></i>${name}`;
+        btn.className = 'sport-tab' + (cat.id === 'football' ? ' active' : '');
+        btn.dataset.cat = cat.id;
+        btn.innerHTML = `<i class="fas ${SPORT_ICONS[cat.id] || 'fa-trophy'}"></i>${esc(cat.name)}`;
         btn.style.animationDelay = `${i * 0.04}s`;
-
-        btn.addEventListener('click', () => switchSport(cat));
+        btn.addEventListener('click', () => onTabClick(cat.id));
         nav.appendChild(btn);
     });
 }
 
-/* ══ Trocar de desporto ═══════════════════════ */
-async function switchSport(cat) {
-    state.activeTab = cat;
+function onTabClick(cat) {
+    activeCat = cat;
+    document.querySelectorAll('.sport-tab').forEach(b =>
+        b.classList.toggle('active', b.dataset.cat === cat)
+    );
+    loadMatches(cat);
+}
 
-    document.querySelectorAll('.sport-tab').forEach(b => {
-        b.classList.toggle('active', b.dataset.cat === cat);
-    });
+/* ─── Carregar jogos ──────────────────────────────────────── */
+async function loadMatches(cat) {
+    activeCat = cat;
 
-    clearSearch();
-    document.getElementById('main-content').innerHTML = '';
+    // Limpa ecrã
     document.getElementById('hero-featured').style.display = 'none';
     document.getElementById('live-bar').style.display = 'none';
     document.getElementById('empty-state').style.display = 'none';
-
-    if (cat === '_streams') {
-        renderManualStreams();
-        return;
-    }
-
     showSkeletons();
 
+    let matches;
     try {
-        const data = await apiFetch({ data: 'matches', category: cat });
-
-        // API devolve sempre { success: true, data: [...] }
-        let matches = [];
-        if (data && data.success && Array.isArray(data.data)) {
-            matches = data.data;
-        } else if (Array.isArray(data)) {
-            matches = data;
-        }
-
-        state.matches = matches;
-        renderMatches(matches);
-
+        const data = await apiGet({ data: 'matches', category: cat });
+        // data = array de jogos
+        matches = Array.isArray(data) ? data.filter(m => m && m.id) : [];
     } catch (e) {
-        console.error('switchSport erro:', cat, e);
+        console.error('loadMatches erro:', e);
         clearSkeletons();
-        showEmpty('Erro ao carregar', `Não foi possível obter os jogos: ${e.message}`);
-    }
-}
-
-/* ══ Render matches ══════════════════════════ */
-function renderMatches(matches) {
-    clearSkeletons();
-    const container = document.getElementById('main-content');
-    container.innerHTML = '';
-
-    if (!matches.length) {
-        showEmpty();
+        showError('Erro: ' + e.message);
         return;
     }
 
-    // Separa live vs upcoming
-    const live     = matches.filter(isLive);
-    const upcoming = matches.filter(m => !isLive(m));
-
-    // Hero com um jogo ao vivo (ou o primeiro)
-    const heroMatch = live[0] || upcoming[0];
-    if (heroMatch) setupHero(heroMatch);
-
-    // Ticker de jogos ao vivo
-    if (live.length) renderLiveBar(live);
-
-    // Agrupa upcoming por liga/competição
-    const groups = {};
-    matches.forEach(m => {
-        const key = m.league || m.competition || m.category || 'Outros';
-        (groups[key] = groups[key] || []).push(m);
-    });
-
-    Object.entries(groups).forEach(([league, items], idx) => {
-        const row = createRow(league, items.length, idx);
-        const carousel = row.querySelector('.carousel');
-        items.forEach(m => carousel.appendChild(createMatchCard(m)));
-        container.appendChild(row);
-    });
+    allMatches = matches;
+    clearSkeletons();
+    renderMatches(matches);
 }
 
-function isLive(match) {
-    // Verifica flags explícitas primeiro
-    if (match.live === true) return true;
-    if (typeof match.status === 'string' && /live|inprog/i.test(match.status)) return true;
-    // Verifica se a data (em ms) está dentro da janela de 3h (jogo em curso)
-    const ts = match.date || match.timestamp || match.time;
-    if (ts && typeof ts === 'number') {
-        const nowMs = Date.now();
-        return ts <= nowMs && ts >= nowMs - 3 * 60 * 60 * 1000;
+/* ─── Render jogos ────────────────────────────────────────── */
+function renderMatches(matches) {
+    document.getElementById('hero-featured').style.display = 'none';
+    document.getElementById('live-bar').style.display = 'none';
+    document.getElementById('main-content').innerHTML = '';
+    document.getElementById('empty-state').style.display = 'none';
+
+    if (!matches.length) {
+        document.getElementById('empty-title').textContent = 'Sem jogos disponíveis';
+        document.getElementById('empty-desc').textContent = 'Não há jogos agendados neste momento.';
+        document.getElementById('empty-state').style.display = 'flex';
+        return;
     }
-    return false;
+
+    // Hero
+    const hero = matches.find(m => m.popular) || matches[0];
+    setupHero(hero);
+
+    // Live ticker
+    const liveMatches = matches.filter(m => isLive(m.date));
+    if (liveMatches.length) renderLiveBar(liveMatches);
+
+    // Grid de jogos
+    const section = document.createElement('div');
+    section.className = 'row';
+
+    const label = document.createElement('div');
+    label.className = 'row-header';
+    label.innerHTML = `<div class="row-title">Jogos</div><span class="row-count">${matches.length}</span>`;
+    section.appendChild(label);
+
+    const carousel = document.createElement('div');
+    carousel.className = 'carousel';
+    matches.forEach(m => carousel.appendChild(buildCard(m)));
+    section.appendChild(carousel);
+
+    document.getElementById('main-content').appendChild(section);
 }
 
-function getMatchTime(match) {
-    const raw = match.date || match.timestamp || match.time || match.start || '';
-    if (!raw) return 'Em breve';
-    // Timestamp em milissegundos (API devolve ms: ex. 1771981200000)
-    if (typeof raw === 'number' || /^\d{10,}$/.test(String(raw))) {
-        const ms = typeof raw === 'number' ? raw : parseInt(raw);
-        // Se tiver mais de 12 dígitos já está em ms, senão converte de s para ms
-        const date = new Date(ms > 1e12 ? ms : ms * 1000);
-        return date.toLocaleString('pt-PT', {
-            weekday: 'short', day: '2-digit', month: 'short',
-            hour: '2-digit', minute: '2-digit'
-        });
-    }
-    return String(raw);
-}
+function buildCard(match) {
+    const home   = teamName(match.teams?.home);
+    const away   = teamName(match.teams?.away);
+    const hBadge = match.teams?.home?.badge;
+    const aBadge = match.teams?.away?.badge;
+    const live   = isLive(match.date);
+    const time   = live ? 'AO VIVO' : fmtDate(match.date);
+    const poster = match.poster;
 
-function getTeamNames(match) {
-    // Formato real da API: match.teams = { home: { name, badge }, away: { name, badge } }
-    if (match.teams && typeof match.teams === 'object' && match.teams.home) {
-        return {
-            home: match.teams.home.name || 'Casa',
-            away: match.teams.away.name || 'Fora',
-        };
-    }
-    // Fallbacks
-    if (match.home && match.away) return { home: match.home, away: match.away };
-    // Último recurso: parse do title "Time A vs Time B"
-    const parts = (match.title || '').split(/\s+vs\.?\s+/i);
-    return {
-        home: parts[0]?.trim() || 'Casa',
-        away: parts[1]?.trim() || 'Fora',
-    };
-}
-
-function getTeamBadges(match) {
-    if (match.teams && typeof match.teams === 'object' && match.teams.home) {
-        return {
-            home: match.teams.home.badge || '',
-            away: match.teams.away.badge || '',
-        };
-    }
-    return { home: match.home_badge || '', away: match.away_badge || '' };
-}
-
-function createRow(league, count, idx) {
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.style.animationDelay = `${idx * 0.06}s`;
-    row.innerHTML = `
-        <div class="row-header">
-            <div class="row-title">${sanitize(league)}</div>
-            <span class="row-count">${count} jogo${count !== 1 ? 's' : ''}</span>
-        </div>
-        <div class="carousel"></div>
-    `;
-    return row;
-}
-
-function createMatchCard(match) {
     const card = document.createElement('div');
-    card.className = 'match-card' + (isLive(match) ? ' is-live' : '');
+    card.className = 'match-card' + (live ? ' is-live' : '');
     card.setAttribute('role', 'button');
     card.setAttribute('tabindex', '0');
 
-    const { home, away } = getTeamNames(match);
-    const timeStr = isLive(match) ? 'AO VIVO' : getMatchTime(match);
-    const league  = sanitize(match.league || match.competition || '');
-
-    // Poster ou placeholder com badges
-    const hasPoster = match.poster || match.image || match.banner;
-    const posterHTML = hasPoster
-        ? `<img class="card-poster" src="${sanitize(hasPoster)}" alt="${sanitize(home)} vs ${sanitize(away)}" loading="lazy" onerror="this.parentNode.innerHTML=buildCardPlaceholder('${sanitize(home)}','${sanitize(away)}',this)">`
-        : buildCardPlaceholder(home, away);
+    // Visual topo: poster ou badges
+    let top = '';
+    if (poster) {
+        top = `<img class="card-poster" src="${esc(poster)}" alt="" loading="lazy"
+               onerror="this.style.display='none'">`;
+    } else {
+        const hImg = hBadge
+            ? `<img src="${esc(hBadge)}" alt="" loading="lazy" style="width:34px;height:34px;object-fit:contain" onerror="this.outerHTML='<span class=badge-init>${esc(home.slice(0,2).toUpperCase())}</span>'">`
+            : `<span class="badge-init">${esc(home.slice(0,2).toUpperCase())}</span>`;
+        const aImg = aBadge
+            ? `<img src="${esc(aBadge)}" alt="" loading="lazy" style="width:34px;height:34px;object-fit:contain" onerror="this.outerHTML='<span class=badge-init>${esc(away.slice(0,2).toUpperCase())}</span>'">`
+            : `<span class="badge-init">${esc(away.slice(0,2).toUpperCase())}</span>`;
+        top = `<div class="card-poster-placeholder">${hImg}<span class="card-vs">VS</span>${aImg}</div>`;
+    }
 
     card.innerHTML = `
-        ${posterHTML}
+        ${top}
         <div class="card-body">
-            <div class="card-teams">${sanitize(home)}${away ? ` vs ${sanitize(away)}` : ''}</div>
-            ${league ? `<div class="card-league">${league}</div>` : ''}
-            <div class="card-time ${isLive(match) ? 'live' : ''}">
-                <i class="fas ${isLive(match) ? 'fa-circle' : 'fa-clock'}"></i>
-                ${sanitize(timeStr)}
+            <div class="card-teams">${esc(home)} vs ${esc(away)}</div>
+            <div class="card-time ${live ? 'live' : ''}">
+                <i class="fas ${live ? 'fa-circle' : 'fa-clock'}"></i> ${esc(time)}
             </div>
         </div>
         <div class="card-play-overlay"><i class="fas fa-play"></i></div>
     `;
 
-    const open = () => openMatch(match);
-    card.addEventListener('click', open);
-    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-
+    card.addEventListener('click', () => openMatch(match));
+    card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMatch(match); }
+    });
     return card;
 }
 
-function buildCardPlaceholder(home, away) {
-    const initH = (home || '?')[0].toUpperCase();
-    const initA = (away || '?')[0].toUpperCase();
-    return `<div class="card-poster-placeholder">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem">${initH}</div>
-        <span class="card-vs">VS</span>
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem">${initA}</div>
-    </div>`;
-}
-
-/* ══ Hero ═════════════════════════════════════ */
+/* ─── Hero ────────────────────────────────────────────────── */
 function setupHero(match) {
-    const hero   = document.getElementById('hero-featured');
-    const bg     = document.getElementById('hero-bg');
-    const { home, away } = getTeamNames(match);
-    const cat    = state.activeTab || 'default';
+    const home = teamName(match.teams?.home);
+    const away = teamName(match.teams?.away);
+    const live = isLive(match.date);
 
     document.getElementById('hero-teams').innerHTML =
-        `${sanitize(home)}<span class="hero-vs">VS</span>${sanitize(away)}`;
-    document.getElementById('hero-league').textContent =
-        match.league || match.competition || '';
+        `${esc(home)}<span class="hero-vs">VS</span>${esc(away)}`;
+    document.getElementById('hero-league').textContent = '';
     document.getElementById('hero-time').textContent =
-        isLive(match) ? '🔴 Ao vivo agora' : getMatchTime(match);
+        live ? '🔴 Ao vivo agora' : fmtDate(match.date);
 
-    // Imagem de fundo
-    const imgSrc = match.poster || match.image || SPORT_BGSRC[cat] || SPORT_BGSRC.default;
-    bg.style.backgroundImage = `url('${imgSrc}')`;
+    const bg = document.getElementById('hero-bg');
+    const img = match.poster || BG_IMAGES[activeCat] || BG_IMAGES.default;
+    bg.style.backgroundImage = `url('${img}')`;
     bg.style.opacity = '0';
-    setTimeout(() => { bg.style.transition = 'opacity .8s ease'; bg.style.opacity = '1'; }, 50);
+    requestAnimationFrame(() => {
+        bg.style.transition = 'opacity .8s';
+        bg.style.opacity = '1';
+    });
 
     document.getElementById('hero-play').onclick = () => openMatch(match);
-    hero.style.display = 'flex';
+    document.getElementById('hero-featured').style.display = 'flex';
 }
 
-/* ══ Live ticker ══════════════════════════════ */
-function renderLiveBar(liveMatches) {
+/* ─── Live bar ────────────────────────────────────────────── */
+function renderLiveBar(liveList) {
     const bar   = document.getElementById('live-bar');
     const track = document.getElementById('live-bar-track');
     track.innerHTML = '';
-
-    liveMatches.forEach(m => {
-        const { home, away } = getTeamNames(m);
+    liveList.forEach(m => {
         const pill = document.createElement('div');
         pill.className = 'live-pill';
-        pill.innerHTML = `<span class="live-pill-dot"></span>${sanitize(home)} vs ${sanitize(away)}`;
+        const h = teamName(m.teams?.home);
+        const a = teamName(m.teams?.away);
+        pill.innerHTML = `<span class="live-pill-dot"></span>${esc(h)} vs ${esc(a)}`;
         pill.addEventListener('click', () => openMatch(m));
         track.appendChild(pill);
     });
-
     bar.style.display = 'flex';
 }
 
-/* ══ Abrir jogo / obter stream ════════════════ */
+/* ─── Abrir jogo → streams ────────────────────────────────── */
 async function openMatch(match) {
-    state.currentMatch = match;
-    const { home, away } = getTeamNames(match);
+    const home = teamName(match.teams?.home);
+    const away = teamName(match.teams?.away);
 
-    document.getElementById('player-title').textContent  = `${home}${away ? ` vs ${away}` : ''}`;
-    document.getElementById('player-subtitle').textContent = match.league || match.competition || '';
+    document.getElementById('player-title').textContent = `${home} vs ${away}`;
+    document.getElementById('player-subtitle').textContent = '';
     document.getElementById('stream-sources').innerHTML = '';
 
-    showPlayer();
+    document.getElementById('video-player-container').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    showSpinner();
 
     try {
-        const cat = state.activeTab;
-        const id  = match.id || match.match_id || match.event_id || match.slug;
+        const data = await apiGet({ data: 'detail', category: activeCat, id: match.id });
 
-        if (!id) throw new Error('Sem ID de jogo');
+        let sources = [];
+        if (Array.isArray(data))                     sources = data;
+        else if (data?.streams?.length)              sources = data.streams;
+        else if (data?.embed)                        sources = [{ name: 'Stream 1', url: data.embed }];
+        else if (data?.url)                          sources = [{ name: 'Stream 1', url: data.url }];
+        else if (data?.iframe)                       sources = [{ name: 'Stream 1', url: data.iframe }];
+        else if (typeof data === 'string' && data.startsWith('http'))
+                                                     sources = [{ name: 'Stream 1', url: data }];
 
-        const detail = await apiFetch({ data: 'detail', category: cat, id });
-        handleStreamDetail(detail, match);
+        if (!sources.length) {
+            hideSpinner();
+            alert('Sem stream disponível para este jogo.');
+            closePlayer();
+            return;
+        }
+
+        // Botões de fonte
+        const bar = document.getElementById('stream-sources');
+        if (sources.length > 1) {
+            sources.forEach((s, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'src-btn' + (i === 0 ? ' active' : '');
+                btn.textContent = s.name || s.label || `Fonte ${i + 1}`;
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    loadStream(s.url || s.embed || s.src);
+                });
+                bar.appendChild(btn);
+            });
+        }
+
+        loadStream(sources[0].url || sources[0].embed || sources[0].src);
 
     } catch (e) {
         console.error('openMatch:', e);
-        // Tenta usar embed direto se já existir no objeto
-        if (match.embed || match.stream || match.url) {
-            loadIframe(match.embed || match.stream || match.url);
-        } else {
-            hideSpinner();
-            showToast('Sem stream disponível para este jogo', 'error');
-        }
-    }
-}
-
-function handleStreamDetail(detail, match) {
-    // A API devolve { success: true, data: { streams: [...], embed: '...' } }
-    const d = (detail && detail.success && detail.data) ? detail.data : detail;
-    let sources = [];
-
-    if (Array.isArray(d)) {
-        sources = d;
-    } else if (d && d.streams && Array.isArray(d.streams)) {
-        sources = d.streams;
-    } else if (d && d.embed) {
-        sources = [{ label: 'Stream 1', url: d.embed }];
-    } else if (d && d.url) {
-        sources = [{ label: 'Stream 1', url: d.url }];
-    } else if (d && d.iframe) {
-        sources = [{ label: 'Stream 1', url: d.iframe }];
-    } else if (typeof d === 'string' && d.startsWith('http')) {
-        sources = [{ label: 'Stream 1', url: d }];
-    }
-
-    // Fallback: tenta campos alternativos no match original
-    if (!sources.length && (match.embed || match.stream)) {
-        sources = [{ label: 'Stream 1', url: match.embed || match.stream }];
-    }
-
-    if (!sources.length) {
         hideSpinner();
-        showToast('Stream não disponível neste momento', 'error', 4000);
-        return;
+        alert('Erro ao carregar stream: ' + e.message);
+        closePlayer();
     }
-
-    state.currentSources = sources;
-    renderSourceButtons(sources);
-    loadIframe(sources[0].url || sources[0].embed || sources[0].src);
 }
 
-function renderSourceButtons(sources) {
-    const bar = document.getElementById('stream-sources');
-    bar.innerHTML = '';
-    if (sources.length <= 1) return;
-
-    sources.forEach((src, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'src-btn' + (i === 0 ? ' active' : '');
-        btn.textContent = src.label || src.name || `Fonte ${i + 1}`;
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            showSpinner();
-            loadIframe(src.url || src.embed || src.src);
-        });
-        bar.appendChild(btn);
-    });
-}
-
-function loadIframe(url) {
+function loadStream(url) {
     const iframe = document.getElementById('main-iframe');
     showSpinner();
     iframe.src = '';
     setTimeout(() => {
         iframe.src = url;
         iframe.onload = hideSpinner;
-        // Timeout de segurança
-        setTimeout(hideSpinner, 8000);
-    }, 100);
-}
-
-/* ══ Player ════════════════════════════════════ */
-function showPlayer() {
-    const c = document.getElementById('video-player-container');
-    c.style.display = 'flex';
-    c.setAttribute('aria-hidden', 'false');
-    showSpinner();
-    document.body.style.overflow = 'hidden';
+        setTimeout(hideSpinner, 12000);
+    }, 200);
 }
 
 function closePlayer() {
-    const iframe = document.getElementById('main-iframe');
-    iframe.src = '';
+    document.getElementById('main-iframe').src = '';
     document.getElementById('video-player-container').style.display = 'none';
-    document.getElementById('video-player-container').setAttribute('aria-hidden', 'true');
-    hideSpinner();
     document.body.style.overflow = '';
+    hideSpinner();
 }
 
 function showSpinner() { document.getElementById('player-spinner').style.display = 'flex'; }
 function hideSpinner() { document.getElementById('player-spinner').style.display = 'none'; }
 
-/* ══ Pesquisa ══════════════════════════════════ */
-function toggleSearch() {
-    const box = document.getElementById('search-box');
-    const field = document.getElementById('search-field');
-    const expanded = box.classList.toggle('expanded');
-    if (expanded) field.focus();
-    else { field.value = ''; filterMatches(); }
-}
-
-function clearSearch() {
-    document.getElementById('search-field').value = '';
-    document.getElementById('search-clear').classList.remove('visible');
-    document.getElementById('search-box').classList.remove('expanded');
-    filterMatches();
-}
-
-function filterMatches() {
-    const q = document.getElementById('search-field').value.trim().toLowerCase();
-    document.getElementById('search-clear').classList.toggle('visible', q.length > 0);
-
-    if (state.activeTab === '_streams') return;
-
-    const filtered = q
-        ? state.matches.filter(m => {
-            const { home, away } = getTeamNames(m);
-            return home.toLowerCase().includes(q) || away.toLowerCase().includes(q)
-                || (m.league || '').toLowerCase().includes(q);
-          })
-        : state.matches;
-
-    renderMatches(filtered);
-}
-
-/* ══ Skeletons ═════════════════════════════════ */
+/* ─── Skeletons ───────────────────────────────────────────── */
 function showSkeletons() {
-    const c = document.getElementById('main-content');
-    c.innerHTML = Array(3).fill(0).map(() => `
-        <div class="row" style="margin-bottom:8px;padding:0 4%">
-            <div class="row-header"><div style="width:120px;height:14px;border-radius:4px;background:rgba(255,255,255,.06);animation:shimmer 1.3s infinite"></div></div>
-            <div class="carousel">${Array(5).fill(`<div style="flex:0 0 220px;height:190px;border-radius:10px;background:rgba(255,255,255,.05);animation:shimmer 1.3s infinite"></div>`).join('')}</div>
+    document.getElementById('main-content').innerHTML = `
+        <div class="row" style="padding:0 4%">
+            <div class="row-header">
+                <div style="width:100px;height:13px;border-radius:4px;background:rgba(255,255,255,.07);animation:shimmer 1.4s infinite"></div>
+            </div>
+            <div class="carousel">
+                ${Array(6).fill(`<div style="flex:0 0 200px;height:170px;border-radius:10px;background:rgba(255,255,255,.05);animation:shimmer 1.4s infinite"></div>`).join('')}
+            </div>
         </div>
-    `).join('');
-}
-
-function clearSkeletons() {
-    const c = document.getElementById('main-content');
-    // Remove apenas os skeletons (divs sem classe específica de conteúdo)
-    c.innerHTML = '';
-}
-
-/* ══ Empty / Error ═════════════════════════════ */
-function showEmpty(title = 'Sem jogos disponíveis', desc = 'Não há jogos agendados nesta categoria de momento.') {
-    document.getElementById('main-content').innerHTML = '';
-    document.getElementById('hero-featured').style.display = 'none';
-    document.getElementById('live-bar').style.display = 'none';
-    document.getElementById('empty-title').textContent = title;
-    document.getElementById('empty-desc').textContent  = desc;
-    document.getElementById('empty-state').style.display = 'flex';
-}
-
-/* ══ Refresh ═══════════════════════════════════ */
-function refreshData() {
-    const icon = document.getElementById('refresh-icon');
-    icon.classList.add('fa-spin');
-    const cat = state.activeTab;
-    if (cat) {
-        switchSport(cat).finally(() => setTimeout(() => icon.classList.remove('fa-spin'), 600));
-    } else {
-        loadSports().finally(() => setTimeout(() => icon.classList.remove('fa-spin'), 600));
-    }
-}
-
-/* ══ Livestreams manuais ═══════════════════════ */
-function renderManualStreams() {
-    document.getElementById('hero-featured').style.display = 'none';
-    document.getElementById('live-bar').style.display = 'none';
-    document.getElementById('empty-state').style.display = 'none';
-
-    const container = document.getElementById('main-content');
-    container.innerHTML = '';
-
-    if (!state.streams.length) {
-        showEmpty('Sem livestreams', 'Adiciona streams manuais clicando no botão + no cabeçalho.');
-        return;
-    }
-
-    const row = createRow('Livestreams', state.streams.length, 0);
-    const carousel = row.querySelector('.carousel');
-
-    state.streams.forEach((s, i) => {
-        const card = document.createElement('div');
-        card.className = 'match-card';
-        card.setAttribute('role', 'button');
-        card.setAttribute('tabindex', '0');
-        card.innerHTML = `
-            <div class="card-poster-placeholder">
-                <div style="width:44px;height:44px;border-radius:50%;background:rgba(229,9,20,.15);border:1px solid rgba(229,9,20,.3);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:1.1rem">
-                    <i class="fas fa-broadcast-tower"></i>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="card-teams">${sanitize(s.name)}</div>
-                <div class="card-time"><i class="fas fa-link"></i> Stream direto</div>
-            </div>
-            <div class="card-play-overlay"><i class="fas fa-external-link-alt"></i></div>
-        `;
-        const open = () => {
-            document.getElementById('player-title').textContent  = s.name;
-            document.getElementById('player-subtitle').textContent = 'Livestream';
-            document.getElementById('stream-sources').innerHTML = '';
-            showPlayer();
-            loadIframe(s.url);
-        };
-        card.addEventListener('click', open);
-        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-        carousel.appendChild(card);
-    });
-
-    container.appendChild(row);
-}
-
-function addDirectStream() {
-    const urlEl  = document.getElementById('direct-stream-url');
-    const nameEl = document.getElementById('direct-stream-name');
-    const url    = urlEl.value.trim();
-    const name   = nameEl.value.trim() || `Stream ${state.streams.length + 1}`;
-
-    if (!url)            { showToast('Insere um URL', 'error'); return; }
-    if (!isValidUrl(url)) { showToast('URL inválido', 'error'); return; }
-
-    state.streams.push({ id: Date.now().toString(), name, url });
-    localStorage.setItem('sl_streams', JSON.stringify(state.streams));
-    urlEl.value = ''; nameEl.value = '';
-    showToast(`"${name}" adicionado!`, 'success');
-    renderSavedStreams();
-
-    // Atualiza tab se estiver ativa
-    if (state.activeTab === '_streams') renderManualStreams();
-}
-
-function deleteStream(id) {
-    state.streams = state.streams.filter(s => s.id !== id);
-    localStorage.setItem('sl_streams', JSON.stringify(state.streams));
-    renderSavedStreams();
-    if (state.activeTab === '_streams') renderManualStreams();
-    showToast('Stream removido', 'info');
-}
-
-function renderSavedStreams() {
-    const list = document.getElementById('saved-streams-list');
-    if (!state.streams.length) { list.innerHTML = ''; return; }
-
-    list.innerHTML = `
-        <div style="padding:14px 22px 4px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim)">Guardados (${state.streams.length})</div>
-        ${state.streams.map(s => `
-            <div class="saved-stream-item" style="padding:9px 22px">
-                <span class="saved-stream-name" onclick="playStreamDirect('${s.id}')">${sanitize(s.name)}</span>
-                <button class="saved-stream-del" onclick="deleteStream('${s.id}')"><i class="fas fa-trash"></i></button>
-            </div>
-        `).join('')}
     `;
 }
 
-function playStreamDirect(id) {
-    const s = state.streams.find(x => x.id === id);
-    if (!s) return;
-    toggleModal(false);
-    document.getElementById('player-title').textContent  = s.name;
-    document.getElementById('player-subtitle').textContent = 'Livestream';
-    document.getElementById('stream-sources').innerHTML = '';
-    showPlayer();
-    loadIframe(s.url);
+function clearSkeletons() {
+    document.getElementById('main-content').innerHTML = '';
 }
 
-/* ══ Modal ═════════════════════════════════════ */
-function toggleModal(show) {
-    const m = document.getElementById('config-modal');
-    if (show) {
-        m.style.display = 'flex';
-        renderSavedStreams();
-        setTimeout(() => document.getElementById('direct-stream-url')?.focus(), 100);
-    } else {
-        m.style.display = 'none';
-    }
+/* ─── Erro ────────────────────────────────────────────────── */
+function showError(msg) {
+    document.getElementById('empty-title').textContent = 'Erro';
+    document.getElementById('empty-desc').textContent  = msg;
+    document.getElementById('empty-state').style.display = 'flex';
+    document.getElementById('empty-state').querySelector('button').onclick = () => loadMatches(activeCat);
 }
 
-/* ══ Toast ═════════════════════════════════════ */
-function showToast(msg, type = 'info', ms = 3000) {
-    const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', info:'fa-info-circle' };
-    const c = document.getElementById('toast-container');
-    const t = document.createElement('div');
-    t.className = `toast ${type}`;
-    t.innerHTML = `<i class="fas ${icons[type]}"></i><span>${sanitize(msg)}</span>`;
-    c.appendChild(t);
-    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 350); }, ms);
+/* ─── Pesquisa ────────────────────────────────────────────── */
+function onSearch() {
+    const q = document.getElementById('search-field').value.trim().toLowerCase();
+    if (!q) { renderMatches(allMatches); return; }
+    const filtered = allMatches.filter(m => {
+        const h = (m.teams?.home?.name || '').toLowerCase();
+        const a = (m.teams?.away?.name || '').toLowerCase();
+        const t = (m.title || '').toLowerCase();
+        return h.includes(q) || a.includes(q) || t.includes(q);
+    });
+    renderMatches(filtered);
 }
 
-// Shimmer keyframe (não pode ir no CSS externo porque é inline)
-const styleTag = document.createElement('style');
-styleTag.textContent = `@keyframes shimmer{to{background-position:-200% 0}}[style*="shimmer"]{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.09) 50%,rgba(255,255,255,.05) 75%);background-size:200% 100%}`;
-document.head.appendChild(styleTag);
+/* ─── Expor funções usadas no HTML ───────────────────────── */
+window.closePlayer   = closePlayer;
+window.toggleModal   = (open) => { /* modal removido */ };
+window.toggleSearch  = () => {
+    const box = document.getElementById('search-box');
+    const field = document.getElementById('search-field');
+    box.classList.toggle('expanded') ? field.focus() : (field.value = '', onSearch());
+};
+window.refreshData   = () => loadMatches(activeCat);
