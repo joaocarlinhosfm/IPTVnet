@@ -100,26 +100,27 @@ function setupKeyboard() {
 async function loadSports() {
     try {
         const data = await apiFetch({ data: 'sports' });
-        const sports = Array.isArray(data) ? data : (data.sports || data.categories || []);
+        // API devolve { success: true, data: [...] }
+        const sports = data.data || data.sports || data.categories || (Array.isArray(data) ? data : []);
 
         if (!sports.length) throw new Error('Sem categorias');
 
         state.sports = sports;
         renderTabs(sports);
 
-        // Activa o primeiro
-        const first = sports[0];
-        const catKey = (first.category || first.slug || first.name || '').toLowerCase();
+        // Activa football como padrão (ou o primeiro disponível)
+        const defaultCat = sports.find(s => (s.id || s.category || '').toLowerCase() === 'football')
+                        || sports[0];
+        const catKey = (defaultCat.id || defaultCat.category || defaultCat.slug || defaultCat.name || '').toLowerCase();
         switchSport(catKey);
 
     } catch (e) {
         console.error('loadSports:', e);
-        // Fallback com categorias fixas
         const fallback = [
-            { name: 'Football',    category: 'football'   },
-            { name: 'Basketball',  category: 'basketball' },
-            { name: 'Tennis',      category: 'tennis'     },
-            { name: 'MMA / UFC',   category: 'mma'        },
+            { name: 'Football',   id: 'football'    },
+            { name: 'Basketball', id: 'basketball'  },
+            { name: 'Tennis',     id: 'tennis'      },
+            { name: 'Fight',      id: 'fight'       },
         ];
         state.sports = fallback;
         renderTabs(fallback);
@@ -131,12 +132,12 @@ function renderTabs(sports) {
     const nav = document.getElementById('sport-tabs');
     nav.innerHTML = '';
 
-    // Tab "Livestreams" (manual)
-    const extraSports = [...sports, { name: 'Livestreams', category: '_streams', icon: 'fa-broadcast-tower' }];
+    const extraSports = [...sports, { name: 'Livestreams', id: '_streams', icon: 'fa-broadcast-tower' }];
 
     extraSports.forEach((sport, i) => {
-        const cat  = (sport.category || sport.slug || sport.name || '').toLowerCase();
-        const name = sport.name || sport.category || cat;
+        // API usa campo 'id' (ex: "football"), não "category"
+        const cat  = (sport.id || sport.category || sport.slug || sport.name || '').toLowerCase();
+        const name = sport.name || cat;
         const icon = sport.icon || SPORT_ICONS[cat] || SPORT_ICONS.default;
 
         const btn = document.createElement('button');
@@ -175,7 +176,8 @@ async function switchSport(cat) {
 
     try {
         const data = await apiFetch({ data: 'matches', category: cat });
-        state.matches = Array.isArray(data) ? data : (data.matches || data.events || []);
+        // API devolve { success: true, data: [...] }
+        state.matches = data.data || data.matches || data.events || (Array.isArray(data) ? data : []);
         renderMatches(state.matches);
     } catch (e) {
         console.error('switchSport:', e);
@@ -221,34 +223,60 @@ function renderMatches(matches) {
 }
 
 function isLive(match) {
-    const t = (match.time || match.status || match.date || '').toLowerCase();
-    return t.includes('live') || t.includes('ao vivo') || t === 'live' || match.live === true || match.status === 'live';
+    // Verifica flags explícitas primeiro
+    if (match.live === true) return true;
+    if (typeof match.status === 'string' && /live|inprog/i.test(match.status)) return true;
+    // Verifica se a data (em ms) está dentro da janela de 3h (jogo em curso)
+    const ts = match.date || match.timestamp || match.time;
+    if (ts && typeof ts === 'number') {
+        const nowMs = Date.now();
+        return ts <= nowMs && ts >= nowMs - 3 * 60 * 60 * 1000;
+    }
+    return false;
 }
 
 function getMatchTime(match) {
-    const raw = match.time || match.date || match.start || '';
-    if (!raw) return '';
-    // Unix timestamp
-    if (/^\d{10,}$/.test(String(raw))) {
-        return new Date(parseInt(raw) * 1000).toLocaleString('pt-PT', { weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+    const raw = match.date || match.timestamp || match.time || match.start || '';
+    if (!raw) return 'Em breve';
+    // Timestamp em milissegundos (API devolve ms: ex. 1771981200000)
+    if (typeof raw === 'number' || /^\d{10,}$/.test(String(raw))) {
+        const ms = typeof raw === 'number' ? raw : parseInt(raw);
+        // Se tiver mais de 12 dígitos já está em ms, senão converte de s para ms
+        const date = new Date(ms > 1e12 ? ms : ms * 1000);
+        return date.toLocaleString('pt-PT', {
+            weekday: 'short', day: '2-digit', month: 'short',
+            hour: '2-digit', minute: '2-digit'
+        });
     }
-    return raw;
+    return String(raw);
 }
 
 function getTeamNames(match) {
-    // Diferentes formatos possíveis da API
+    // Formato real da API: match.teams = { home: { name, badge }, away: { name, badge } }
+    if (match.teams && typeof match.teams === 'object' && match.teams.home) {
+        return {
+            home: match.teams.home.name || 'Casa',
+            away: match.teams.away.name || 'Fora',
+        };
+    }
+    // Fallbacks
     if (match.home && match.away) return { home: match.home, away: match.away };
-    if (match.team1 && match.team2) return { home: match.team1, away: match.team2 };
-    if (match.teams) {
-        const parts = match.teams.split(/\s+vs\.?\s+/i);
-        if (parts.length === 2) return { home: parts[0].trim(), away: parts[1].trim() };
+    // Último recurso: parse do title "Time A vs Time B"
+    const parts = (match.title || '').split(/\s+vs\.?\s+/i);
+    return {
+        home: parts[0]?.trim() || 'Casa',
+        away: parts[1]?.trim() || 'Fora',
+    };
+}
+
+function getTeamBadges(match) {
+    if (match.teams && typeof match.teams === 'object' && match.teams.home) {
+        return {
+            home: match.teams.home.badge || '',
+            away: match.teams.away.badge || '',
+        };
     }
-    if (match.title) {
-        const parts = match.title.split(/\s+vs\.?\s+/i);
-        if (parts.length === 2) return { home: parts[0].trim(), away: parts[1].trim() };
-        return { home: match.title, away: '' };
-    }
-    return { home: 'Equipa A', away: 'Equipa B' };
+    return { home: match.home_badge || '', away: match.away_badge || '' };
 }
 
 function createRow(league, count, idx) {
@@ -386,19 +414,22 @@ async function openMatch(match) {
 }
 
 function handleStreamDetail(detail, match) {
-    // A API pode devolver vários formatos
+    // A API devolve { success: true, data: { streams: [...], embed: '...' } }
+    const d = (detail && detail.success && detail.data) ? detail.data : detail;
     let sources = [];
 
-    if (Array.isArray(detail)) {
-        sources = detail;
-    } else if (detail.streams && Array.isArray(detail.streams)) {
-        sources = detail.streams;
-    } else if (detail.embed) {
-        sources = [{ label: 'Stream 1', url: detail.embed }];
-    } else if (detail.url) {
-        sources = [{ label: 'Stream 1', url: detail.url }];
-    } else if (typeof detail === 'string' && detail.startsWith('http')) {
-        sources = [{ label: 'Stream 1', url: detail }];
+    if (Array.isArray(d)) {
+        sources = d;
+    } else if (d && d.streams && Array.isArray(d.streams)) {
+        sources = d.streams;
+    } else if (d && d.embed) {
+        sources = [{ label: 'Stream 1', url: d.embed }];
+    } else if (d && d.url) {
+        sources = [{ label: 'Stream 1', url: d.url }];
+    } else if (d && d.iframe) {
+        sources = [{ label: 'Stream 1', url: d.iframe }];
+    } else if (typeof d === 'string' && d.startsWith('http')) {
+        sources = [{ label: 'Stream 1', url: d }];
     }
 
     // Fallback: tenta campos alternativos no match original
