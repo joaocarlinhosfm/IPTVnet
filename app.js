@@ -297,7 +297,7 @@ async function openMatch(match) {
     const away = teamName(match.teams?.away);
 
     document.getElementById('player-title').textContent = `${home} vs ${away}`;
-    document.getElementById('player-subtitle').textContent = '';
+    document.getElementById('player-subtitle').textContent = match.category || activeCat;
     document.getElementById('stream-sources').innerHTML = '';
 
     document.getElementById('video-player-container').style.display = 'flex';
@@ -306,102 +306,125 @@ async function openMatch(match) {
 
     try {
         const raw = await apiGet({ data: 'detail', category: activeCat, id: match.id });
-        console.log('Detail response:', JSON.stringify(raw));
+        console.log('[SportSRC] detail response:', JSON.stringify(raw));
 
-        // Extrai URL(s) de stream de qualquer formato possível da API
-        let sources = extractSources(raw);
-
-        // Fallback: alguns jogos têm embed directamente no objecto do match
-        if (!sources.length && match.embed) sources = [{ name: 'Stream 1', url: match.embed }];
-        if (!sources.length && match.stream) sources = [{ name: 'Stream 1', url: match.stream }];
+        const sources = extractSources(raw);
+        console.log('[SportSRC] streams encontrados:', sources.length, sources);
 
         if (!sources.length) {
             hideSpinner();
-            showNoStream();
+            showNoStream('A API não devolveu nenhum stream para este jogo.');
             return;
         }
 
-        // Botões de fonte (só aparece se houver mais de 1)
-        const bar = document.getElementById('stream-sources');
-        if (sources.length > 1) {
-            sources.forEach((s, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'src-btn' + (i === 0 ? ' active' : '');
-                btn.textContent = s.name || s.label || `Fonte ${i + 1}`;
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    loadStream(s.url || s.embed || s.src);
-                });
-                bar.appendChild(btn);
-            });
-        }
-
-        loadStream(sources[0].url || sources[0].embed || sources[0].src);
+        buildSourceButtons(sources);
+        loadStream(sources[0]);
 
     } catch (e) {
-        console.error('openMatch erro:', e);
+        console.error('[SportSRC] openMatch erro:', e);
         hideSpinner();
         showNoStream(e.message);
     }
 }
 
-// Extrai sources de qualquer formato que a API possa devolver
+// Extrai array de fontes de QUALQUER formato que a API possa devolver
 function extractSources(data) {
     if (!data) return [];
-    // Array directo de streams
+
+    // Caso 1: array directo de streams [{name, url}, ...]
     if (Array.isArray(data)) {
-        return data.filter(s => s && (s.url || s.embed || s.src));
+        const valid = data.filter(s => s && getUrl(s));
+        if (valid.length) return valid.map((s, i) => ({ name: s.name || s.label || s.title || `Fonte ${i+1}`, url: getUrl(s) }));
     }
-    // Objecto com campo streams
+
+    // Caso 2: objecto com campo streams (array)
     if (data.streams && Array.isArray(data.streams) && data.streams.length) {
-        return data.streams.filter(s => s && (s.url || s.embed || s.src));
+        return data.streams.map((s, i) => ({ name: s.name || s.label || s.title || `Fonte ${i+1}`, url: getUrl(s) })).filter(s => s.url);
     }
-    // Campos directos de URL
-    if (data.embed)  return [{ name: 'Stream 1', url: data.embed  }];
-    if (data.url)    return [{ name: 'Stream 1', url: data.url    }];
-    if (data.iframe) return [{ name: 'Stream 1', url: data.iframe }];
-    if (data.src)    return [{ name: 'Stream 1', url: data.src    }];
-    if (data.link)   return [{ name: 'Stream 1', url: data.link   }];
-    // String directa
-    if (typeof data === 'string' && data.startsWith('http')) {
-        return [{ name: 'Stream 1', url: data }];
-    }
-    // Última tentativa: percorre todas as chaves à procura de uma URL
-    for (const val of Object.values(data)) {
-        if (typeof val === 'string' && val.startsWith('http')) {
+
+    // Caso 3: campos directos com URL única
+    const direct = data.embed || data.url || data.iframe || data.src || data.link || data.stream;
+    if (direct) return [{ name: 'Stream 1', url: direct }];
+
+    // Caso 4: string directa
+    if (typeof data === 'string' && data.startsWith('http')) return [{ name: 'Stream 1', url: data }];
+
+    // Caso 5: procura recursiva em todos os valores do objecto
+    for (const [key, val] of Object.entries(data)) {
+        if (typeof val === 'string' && val.startsWith('http') && (val.includes('embed') || val.includes('stream') || val.includes('watch') || val.includes('live'))) {
             return [{ name: 'Stream 1', url: val }];
         }
+        if (Array.isArray(val) && val.length && val[0] && getUrl(val[0])) {
+            return val.map((s, i) => ({ name: s.name || `Fonte ${i+1}`, url: getUrl(s) })).filter(s => s.url);
+        }
     }
+
     return [];
 }
 
-function showNoStream(extra) {
-    const msg = document.createElement('div');
-    msg.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:12px;padding:24px;text-align:center;background:#111';
-    msg.innerHTML = `
-        <i class="fas fa-satellite-dish" style="font-size:2.5rem;opacity:.4"></i>
-        <p style="font-size:1.1rem;font-weight:600">Stream ainda não disponível</p>
-        <p style="font-size:.85rem;opacity:.6">O stream pode não ter começado ainda ou estar numa fonte diferente.<br>${extra ? `(${extra})` : ''}</p>
-        <button onclick="closePlayer()" style="margin-top:8px;padding:10px 24px;border-radius:6px;background:rgba(255,255,255,.1);border:none;color:#fff;cursor:pointer;font-size:.9rem">Voltar</button>
-    `;
+function getUrl(s) {
+    if (!s) return '';
+    if (typeof s === 'string') return s.startsWith('http') ? s : '';
+    return s.url || s.embed || s.iframe || s.src || s.link || s.stream || '';
+}
+
+function buildSourceButtons(sources) {
+    const bar = document.getElementById('stream-sources');
+    bar.innerHTML = '';
+
+    sources.forEach((s, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'src-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = s.name || `Fonte ${i + 1}`;
+        btn.dataset.idx = i;
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadStream(s);
+        });
+        bar.appendChild(btn);
+    });
+
+    // Botão de reload sempre presente
+    const reload = document.createElement('button');
+    reload.className = 'src-btn src-reload';
+    reload.innerHTML = '<i class="fas fa-redo"></i>';
+    reload.title = 'Recarregar stream';
+    reload.addEventListener('click', () => {
+        const active = bar.querySelector('.src-btn.active:not(.src-reload)');
+        const idx = active ? parseInt(active.dataset.idx) : 0;
+        loadStream(sources[idx]);
+    });
+    bar.appendChild(reload);
+}
+
+function loadStream(source) {
+    const iframe = document.getElementById('main-iframe');
+    const url = typeof source === 'string' ? source : source.url;
+    showSpinner();
+    iframe.src = 'about:blank';
+    setTimeout(() => {
+        iframe.src = url;
+        iframe.onload = () => setTimeout(hideSpinner, 500);
+        setTimeout(hideSpinner, 15000);
+    }, 300);
+}
+
+function showNoStream(detail) {
+    hideSpinner();
     const container = document.getElementById('video-player-container');
-    // Remove mensagem anterior se existir
     container.querySelectorAll('.no-stream-msg').forEach(e => e.remove());
+    const msg = document.createElement('div');
     msg.className = 'no-stream-msg';
+    msg.innerHTML = `
+        <i class="fas fa-satellite-dish"></i>
+        <p>Stream ainda não disponível</p>
+        <small>${esc(detail || 'O jogo pode ainda não ter começado.')}</small>
+        <button onclick="closePlayer()"><i class="fas fa-arrow-left"></i> Voltar</button>
+    `;
     container.appendChild(msg);
 }
 
-function loadStream(url) {
-    const iframe = document.getElementById('main-iframe');
-    showSpinner();
-    iframe.src = '';
-    setTimeout(() => {
-        iframe.src = url;
-        iframe.onload = hideSpinner;
-        setTimeout(hideSpinner, 12000);
-    }, 200);
-}
 
 function closePlayer() {
     document.getElementById('main-iframe').src = '';
