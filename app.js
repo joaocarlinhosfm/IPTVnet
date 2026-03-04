@@ -3,7 +3,6 @@
 /* ══════════════════════════════════════════════
    STREAMLINE SPORTS — APP.JS
    API: SportSRC (api.sportsrc.org)
-   cona
 ══════════════════════════════════════════════ */
 
 const API_BASE = 'https://api.sportsrc.org/';
@@ -57,17 +56,21 @@ function isValidUrl(url) { try { const u = new URL(url); return u.protocol === '
 async function apiFetch(params) {
     const url = new URL(API_BASE);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-    url.searchParams.set('key', API_KEY);
+    // Nota: API é gratuita e funciona sem chave; a chave é opcional
+    if (API_KEY) url.searchParams.set('key', API_KEY);
 
     const res = await fetch(url.toString(), { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`API ${res.status}`);
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
 
-    const ct = res.headers.get('content-type') || '';
-    if (ct.includes('application/json')) return res.json();
-
-    // Alguns endpoints devolvem texto/HTML em erro
+    // Lê sempre como texto primeiro — evita erros de content-type incorreto
     const text = await res.text();
-    try { return JSON.parse(text); } catch { throw new Error('Resposta inválida da API'); }
+    if (!text || !text.trim()) throw new Error('Resposta vazia da API');
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        throw new Error('A API não devolveu JSON válido');
+    }
 }
 
 /* ══ Arranque ══════════════════════════════════ */
@@ -101,27 +104,32 @@ function setupKeyboard() {
 async function loadSports() {
     try {
         const data = await apiFetch({ data: 'sports' });
-        // API devolve { success: true, data: [...] }
-        const sports = data.data || data.sports || data.categories || (Array.isArray(data) ? data : []);
 
-        if (!sports.length) throw new Error('Sem categorias');
+        // API devolve { success: true, data: [{id:"football", name:"Football"}, ...] }
+        let sports = [];
+        if (data && data.success && Array.isArray(data.data)) {
+            sports = data.data;
+        } else if (Array.isArray(data)) {
+            sports = data;
+        }
+
+        if (!sports.length) throw new Error('Lista de desportos vazia');
 
         state.sports = sports;
         renderTabs(sports);
 
-        // Activa football como padrão (ou o primeiro disponível)
-        const defaultCat = sports.find(s => (s.id || s.category || '').toLowerCase() === 'football')
-                        || sports[0];
-        const catKey = (defaultCat.id || defaultCat.category || defaultCat.slug || defaultCat.name || '').toLowerCase();
-        switchSport(catKey);
+        // Abre futebol por defeito
+        switchSport('football');
 
     } catch (e) {
-        console.error('loadSports:', e);
+        console.error('loadSports erro:', e);
+        // Fallback com categorias fixas conhecidas da API
         const fallback = [
-            { name: 'Football',   id: 'football'    },
-            { name: 'Basketball', id: 'basketball'  },
-            { name: 'Tennis',     id: 'tennis'      },
-            { name: 'Fight',      id: 'fight'       },
+            { id: 'football',    name: 'Football'   },
+            { id: 'basketball',  name: 'Basketball' },
+            { id: 'tennis',      name: 'Tennis'     },
+            { id: 'fight',       name: 'Fight / UFC'},
+            { id: 'hockey',      name: 'Hockey'     },
         ];
         state.sports = fallback;
         renderTabs(fallback);
@@ -177,12 +185,22 @@ async function switchSport(cat) {
 
     try {
         const data = await apiFetch({ data: 'matches', category: cat });
-        // API devolve { success: true, data: [...] }
-        state.matches = data.data || data.matches || data.events || (Array.isArray(data) ? data : []);
-        renderMatches(state.matches);
+
+        // API devolve sempre { success: true, data: [...] }
+        let matches = [];
+        if (data && data.success && Array.isArray(data.data)) {
+            matches = data.data;
+        } else if (Array.isArray(data)) {
+            matches = data;
+        }
+
+        state.matches = matches;
+        renderMatches(matches);
+
     } catch (e) {
-        console.error('switchSport:', e);
-        showEmpty('Erro ao carregar', 'Não foi possível obter os jogos. Verifica a ligação.');
+        console.error('switchSport erro:', cat, e);
+        clearSkeletons();
+        showEmpty('Erro ao carregar', `Não foi possível obter os jogos: ${e.message}`);
     }
 }
 
@@ -545,7 +563,11 @@ function showSkeletons() {
     `).join('');
 }
 
-function clearSkeletons() { /* renderMatches substitui o conteúdo */ }
+function clearSkeletons() {
+    const c = document.getElementById('main-content');
+    // Remove apenas os skeletons (divs sem classe específica de conteúdo)
+    c.innerHTML = '';
+}
 
 /* ══ Empty / Error ═════════════════════════════ */
 function showEmpty(title = 'Sem jogos disponíveis', desc = 'Não há jogos agendados nesta categoria de momento.') {
