@@ -305,15 +305,26 @@ async function openMatch(match) {
     showSpinner();
 
     try {
-        const raw = await apiGet({ data: 'detail', category: activeCat, id: match.id });
-        console.log('[SportSRC] detail response:', JSON.stringify(raw));
+        // Fetch RAW — não usar apiGet para não perder nenhum campo
+        const url = new URL(API_BASE);
+        url.searchParams.set('data', 'detail');
+        url.searchParams.set('category', activeCat);
+        url.searchParams.set('id', match.id);
 
-        const sources = extractSources(raw);
+        const res = await fetch(url.toString());
+        const text = await res.text();
+        console.log('[SportSRC] detail RAW:', text.slice(0, 2000));
+
+        let json;
+        try { json = JSON.parse(text); } catch { throw new Error('Resposta inválida: ' + text.slice(0, 100)); }
+
+        // Tenta extrair sources de QUALQUER nível da resposta
+        const sources = extractSources(json);
         console.log('[SportSRC] streams encontrados:', sources.length, sources);
 
         if (!sources.length) {
             hideSpinner();
-            showNoStream('A API não devolveu nenhum stream para este jogo.');
+            showNoStream('Sem stream neste momento. Tenta noutra fonte ou aguarda o início do jogo.');
             return;
         }
 
@@ -327,35 +338,63 @@ async function openMatch(match) {
     }
 }
 
-// Extrai array de fontes de QUALQUER formato que a API possa devolver
-function extractSources(data) {
-    if (!data) return [];
+// Extrai array de fontes de QUALQUER formato/nível da resposta da API
+function extractSources(json) {
+    if (!json) return [];
 
-    // Caso 1: array directo de streams [{name, url}, ...]
-    if (Array.isArray(data)) {
-        const valid = data.filter(s => s && getUrl(s));
-        if (valid.length) return valid.map((s, i) => ({ name: s.name || s.label || s.title || `Fonte ${i+1}`, url: getUrl(s) }));
-    }
+    // Percorre todos os "níveis" possíveis: json directo, json.data, json.data.streams, etc.
+    const candidates = [json];
+    if (json.data !== undefined) candidates.push(json.data);
+    if (json.data && json.data.streams) candidates.push(json.data.streams);
+    if (json.streams) candidates.push(json.streams);
 
-    // Caso 2: objecto com campo streams (array)
-    if (data.streams && Array.isArray(data.streams) && data.streams.length) {
-        return data.streams.map((s, i) => ({ name: s.name || s.label || s.title || `Fonte ${i+1}`, url: getUrl(s) })).filter(s => s.url);
-    }
+    for (const data of candidates) {
+        if (!data) continue;
 
-    // Caso 3: campos directos com URL única
-    const direct = data.embed || data.url || data.iframe || data.src || data.link || data.stream;
-    if (direct) return [{ name: 'Stream 1', url: direct }];
-
-    // Caso 4: string directa
-    if (typeof data === 'string' && data.startsWith('http')) return [{ name: 'Stream 1', url: data }];
-
-    // Caso 5: procura recursiva em todos os valores do objecto
-    for (const [key, val] of Object.entries(data)) {
-        if (typeof val === 'string' && val.startsWith('http') && (val.includes('embed') || val.includes('stream') || val.includes('watch') || val.includes('live'))) {
-            return [{ name: 'Stream 1', url: val }];
+        // Array de streams: [{name, url/embed/...}, ...]
+        if (Array.isArray(data) && data.length) {
+            const valid = data.filter(s => s && getUrl(s));
+            if (valid.length) {
+                return valid.map((s, i) => ({
+                    name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
+                    url: getUrl(s)
+                }));
+            }
         }
-        if (Array.isArray(val) && val.length && val[0] && getUrl(val[0])) {
-            return val.map((s, i) => ({ name: s.name || `Fonte ${i+1}`, url: getUrl(s) })).filter(s => s.url);
+
+        if (typeof data !== 'object' || Array.isArray(data)) continue;
+
+        // streams[] dentro do objecto
+        if (Array.isArray(data.streams) && data.streams.length) {
+            const valid = data.streams.filter(s => s && getUrl(s));
+            if (valid.length) return valid.map((s, i) => ({
+                name: s.name || s.label || s.title || s.server || `Fonte ${i+1}`,
+                url: getUrl(s)
+            }));
+        }
+
+        // URL directa no objecto
+        const direct = data.embed || data.url || data.iframe || data.src || data.link || data.stream || data.video;
+        if (direct && typeof direct === 'string' && direct.startsWith('http')) {
+            return [{ name: 'Stream 1', url: direct }];
+        }
+
+        // String directa
+        if (typeof data === 'string' && data.startsWith('http')) {
+            return [{ name: 'Stream 1', url: data }];
+        }
+
+        // Procura em TODOS os campos do objecto (qualquer nome de campo com URL)
+        for (const val of Object.values(data)) {
+            if (typeof val === 'string' && val.length > 10 && val.startsWith('http')) {
+                return [{ name: 'Stream 1', url: val }];
+            }
+            if (Array.isArray(val) && val.length && val[0] && getUrl(val[0])) {
+                return val.map((s, i) => ({
+                    name: (typeof s === 'object' ? (s.name || s.label || `Fonte ${i+1}`) : `Fonte ${i+1}`),
+                    url: getUrl(s)
+                })).filter(s => s.url);
+            }
         }
     }
 
