@@ -305,13 +305,21 @@ async function openMatch(match) {
     showSpinner();
 
     try {
-        // Fetch RAW — não usar apiGet para não perder nenhum campo
-        const url = new URL(API_BASE);
-        url.searchParams.set('data', 'detail');
-        url.searchParams.set('category', activeCat.trim());
-        url.searchParams.set('id', match.id.trim());
+        // Diagnóstico: log do objecto match completo
+        console.log('[SportSRC] match completo:', JSON.stringify(match));
+        console.log('[SportSRC] activeCat:', activeCat);
 
-        const res = await fetch(url.toString());
+        const matchId  = (match.id       || match.matchId || match.slug || '').toString().trim();
+        const matchCat = (match.category || activeCat     || 'football').toString().trim();
+
+        if (!matchId || !matchCat) {
+            throw new Error(`Parâmetros inválidos — id="${matchId}" category="${matchCat}"`);
+        }
+
+        const url = `${API_BASE}?data=detail&category=${encodeURIComponent(matchCat)}&id=${encodeURIComponent(matchId)}`;
+        console.log('[SportSRC] detail URL:', url);
+
+        const res  = await fetch(url);
         const text = await res.text();
         console.log('[SportSRC] detail RAW:', text.slice(0, 2000));
 
@@ -507,3 +515,4 @@ window.toggleSearch  = () => {
     box.classList.toggle('expanded') ? field.focus() : (field.value = '', onSearch());
 };
 window.refreshData   = () => loadMatches(activeCat);
+,
