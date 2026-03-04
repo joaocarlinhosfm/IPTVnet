@@ -1,4 +1,4 @@
-a'use strict';
+'use strict';
 
 /* ═══════════════════════════════════════════════════════════
    StreamLine Sports — app.js
