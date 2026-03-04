@@ -76,8 +76,9 @@ async function apiGet(params) {
     const text = await res.text();
     let json;
     try { json = JSON.parse(text); } catch { throw new Error('JSON inválido'); }
-    if (!json.success) throw new Error('API: success=false');
-    return json.data;   // devolve sempre json.data diretamente
+    // A API pode devolver {success, data} ou directamente array/objeto
+    if (json && typeof json === 'object' && 'data' in json) return json.data;
+    return json;
 }
 
 /* ─── Arranque ────────────────────────────────────────────── */
@@ -304,25 +305,23 @@ async function openMatch(match) {
     showSpinner();
 
     try {
-        const data = await apiGet({ data: 'detail', category: activeCat, id: match.id });
+        const raw = await apiGet({ data: 'detail', category: activeCat, id: match.id });
+        console.log('Detail response:', JSON.stringify(raw));
 
-        let sources = [];
-        if (Array.isArray(data))                     sources = data;
-        else if (data?.streams?.length)              sources = data.streams;
-        else if (data?.embed)                        sources = [{ name: 'Stream 1', url: data.embed }];
-        else if (data?.url)                          sources = [{ name: 'Stream 1', url: data.url }];
-        else if (data?.iframe)                       sources = [{ name: 'Stream 1', url: data.iframe }];
-        else if (typeof data === 'string' && data.startsWith('http'))
-                                                     sources = [{ name: 'Stream 1', url: data }];
+        // Extrai URL(s) de stream de qualquer formato possível da API
+        let sources = extractSources(raw);
+
+        // Fallback: alguns jogos têm embed directamente no objecto do match
+        if (!sources.length && match.embed) sources = [{ name: 'Stream 1', url: match.embed }];
+        if (!sources.length && match.stream) sources = [{ name: 'Stream 1', url: match.stream }];
 
         if (!sources.length) {
             hideSpinner();
-            alert('Sem stream disponível para este jogo.');
-            closePlayer();
+            showNoStream();
             return;
         }
 
-        // Botões de fonte
+        // Botões de fonte (só aparece se houver mais de 1)
         const bar = document.getElementById('stream-sources');
         if (sources.length > 1) {
             sources.forEach((s, i) => {
@@ -341,11 +340,56 @@ async function openMatch(match) {
         loadStream(sources[0].url || sources[0].embed || sources[0].src);
 
     } catch (e) {
-        console.error('openMatch:', e);
+        console.error('openMatch erro:', e);
         hideSpinner();
-        alert('Erro ao carregar stream: ' + e.message);
-        closePlayer();
+        showNoStream(e.message);
     }
+}
+
+// Extrai sources de qualquer formato que a API possa devolver
+function extractSources(data) {
+    if (!data) return [];
+    // Array directo de streams
+    if (Array.isArray(data)) {
+        return data.filter(s => s && (s.url || s.embed || s.src));
+    }
+    // Objecto com campo streams
+    if (data.streams && Array.isArray(data.streams) && data.streams.length) {
+        return data.streams.filter(s => s && (s.url || s.embed || s.src));
+    }
+    // Campos directos de URL
+    if (data.embed)  return [{ name: 'Stream 1', url: data.embed  }];
+    if (data.url)    return [{ name: 'Stream 1', url: data.url    }];
+    if (data.iframe) return [{ name: 'Stream 1', url: data.iframe }];
+    if (data.src)    return [{ name: 'Stream 1', url: data.src    }];
+    if (data.link)   return [{ name: 'Stream 1', url: data.link   }];
+    // String directa
+    if (typeof data === 'string' && data.startsWith('http')) {
+        return [{ name: 'Stream 1', url: data }];
+    }
+    // Última tentativa: percorre todas as chaves à procura de uma URL
+    for (const val of Object.values(data)) {
+        if (typeof val === 'string' && val.startsWith('http')) {
+            return [{ name: 'Stream 1', url: val }];
+        }
+    }
+    return [];
+}
+
+function showNoStream(extra) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:12px;padding:24px;text-align:center;background:#111';
+    msg.innerHTML = `
+        <i class="fas fa-satellite-dish" style="font-size:2.5rem;opacity:.4"></i>
+        <p style="font-size:1.1rem;font-weight:600">Stream ainda não disponível</p>
+        <p style="font-size:.85rem;opacity:.6">O stream pode não ter começado ainda ou estar numa fonte diferente.<br>${extra ? `(${extra})` : ''}</p>
+        <button onclick="closePlayer()" style="margin-top:8px;padding:10px 24px;border-radius:6px;background:rgba(255,255,255,.1);border:none;color:#fff;cursor:pointer;font-size:.9rem">Voltar</button>
+    `;
+    const container = document.getElementById('video-player-container');
+    // Remove mensagem anterior se existir
+    container.querySelectorAll('.no-stream-msg').forEach(e => e.remove());
+    msg.className = 'no-stream-msg';
+    container.appendChild(msg);
 }
 
 function loadStream(url) {
