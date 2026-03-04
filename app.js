@@ -69,7 +69,7 @@ function isLive(ms) {
 async function apiGet(params) {
     const url = new URL(API_BASE);
     for (const [k, v] of Object.entries(params)) {
-        url.searchParams.set(k, v);
+        url.searchParams.set(k, String(v).trim());
     }
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -308,8 +308,8 @@ async function openMatch(match) {
         // Fetch RAW — não usar apiGet para não perder nenhum campo
         const url = new URL(API_BASE);
         url.searchParams.set('data', 'detail');
-        url.searchParams.set('category', activeCat);
-        url.searchParams.set('id', match.id);
+        url.searchParams.set('category', activeCat.trim());
+        url.searchParams.set('id', match.id.trim());
 
         const res = await fetch(url.toString());
         const text = await res.text();
