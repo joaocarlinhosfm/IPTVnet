@@ -1,788 +1,668 @@
-/* ═══════════════════════════════════════════
-   STREAMLINE PREMIUM — APP.JS
-   Corrigido: import M3U, XSS, segurança, UX
-═══════════════════════════════════════════ */
-
 'use strict';
 
-// ── Estado centralizado ──────────────────────────────────────
-const state = {
-    channels: safeParseJSON(localStorage.getItem('sl_channels'), []),
-    streams:  safeParseJSON(localStorage.getItem('sl_streams'), []),
-    tab: 'tv',
-    searchTimer: null,
-    heroChannel: null,
+/* ══════════════════════════════════════════════
+   STREAMLINE SPORTS — APP.JS
+   API: SportSRC (api.sportsrc.org)
+══════════════════════════════════════════════ */
+
+const API_BASE = 'https://api.sportsrc.org/';
+const API_KEY  = '7584c81c8ebc7653fb9bf17fb789ee05';
+
+// Ícones por categoria
+const SPORT_ICONS = {
+    football:    'fa-futbol',
+    basketball:  'fa-basketball-ball',
+    tennis:      'fa-table-tennis',
+    baseball:    'fa-baseball-ball',
+    hockey:      'fa-hockey-puck',
+    mma:         'fa-fist-raised',
+    ufc:         'fa-fist-raised',
+    boxing:      'fa-boxing-glove',
+    rugby:       'fa-football-ball',
+    cricket:     'fa-cricket',
+    volleyball:  'fa-volleyball-ball',
+    golf:        'fa-golf-ball',
+    motorsport:  'fa-flag-checkered',
+    f1:          'fa-flag-checkered',
+    cycling:     'fa-bicycle',
+    default:     'fa-trophy',
 };
 
-const PLACEHOLDER = "https://placehold.co/150x200/111111/444444?text=TV";
+// Imagens hero por desporto
+const SPORT_BGSRC = {
+    football:   'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200',
+    basketball: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1200',
+    tennis:     'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?q=80&w=1200',
+    mma:        'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=1200',
+    boxing:     'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?q=80&w=1200',
+    default:    'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200',
+};
 
-// ── Arranque ─────────────────────────────────────────────────
+const state = {
+    sports:       [],
+    activeTab:    null,
+    matches:      [],
+    streams:      safeJSON(localStorage.getItem('sl_streams'), []),
+    currentMatch: null,
+    currentSources: [],
+};
+
+/* ══ Utilitários ══════════════════════════════ */
+function safeJSON(str, fb) { try { return str ? JSON.parse(str) : fb; } catch { return fb; } }
+function sanitize(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function isValidUrl(url) { try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; } }
+
+/* ══ API ══════════════════════════════════════ */
+async function apiFetch(params) {
+    const url = new URL(API_BASE);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    url.searchParams.set('key', API_KEY);
+
+    const res = await fetch(url.toString(), { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) return res.json();
+
+    // Alguns endpoints devolvem texto/HTML em erro
+    const text = await res.text();
+    try { return JSON.parse(text); } catch { throw new Error('Resposta inválida da API'); }
+}
+
+/* ══ Arranque ══════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-    setupLogoMenu();
     setupScrollHeader();
-    setupKeyboard();
-    setupFileDrop();
     addHeaderGradient();
-
-    if (state.channels.length > 0 || state.streams.length > 0) {
-        switchTab(state.channels.length > 0 ? 'tv' : 'streams');
-    } else {
-        showEmpty();
-        setTimeout(() => toggleModal(true), 800);
-    }
+    setupKeyboard();
+    loadSports();
 });
 
-// ── Drag & Drop no ficheiro ───────────────────────────────────
-function setupFileDrop() {
-    const zone = document.getElementById('file-drop-zone');
-    if (!zone) return;
-    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-    zone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        zone.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (!file) return;
-        const fakeInput = { files: [file] };
-        loadFromFile(fakeInput);
-    });
-}
-
-// ── Utilitários ──────────────────────────────────────────────
-function safeParseJSON(str, fallback) {
-    try { return str ? JSON.parse(str) : fallback; }
-    catch { return fallback; }
-}
-
-function sanitizeText(str) {
-    if (!str) return '';
-    const el = document.createElement('span');
-    el.textContent = str;
-    return el.innerHTML;
-}
-
-function isValidUrl(url) {
-    try {
-        const u = new URL(url);
-        return u.protocol === 'http:' || u.protocol === 'https:';
-    } catch { return false; }
-}
-
-// ── Toast notifications ──────────────────────────────────────
-function showToast(message, type = 'info', duration = 3000) {
-    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${sanitizeText(message)}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.classList.add('out');
-        setTimeout(() => toast.remove(), 350);
-    }, duration);
-}
-
-// ── Header scroll effect ─────────────────────────────────────
 function addHeaderGradient() {
-    const grad = document.createElement('div');
-    grad.className = 'header-gradient';
-    document.body.appendChild(grad);
+    const g = document.createElement('div');
+    g.className = 'header-gradient';
+    document.body.appendChild(g);
 }
 
 function setupScrollHeader() {
-    const header = document.getElementById('main-header');
-    const content = document.getElementById('main-scroll');
-    content.addEventListener('scroll', () => {
-        header.classList.toggle('scrolled', content.scrollTop > 40);
+    const h = document.getElementById('main-header');
+    document.getElementById('main-scroll').addEventListener('scroll', () => {
+        h.classList.toggle('scrolled', document.getElementById('main-scroll').scrollTop > 30);
     }, { passive: true });
 }
 
-// ── Logo dropdown ────────────────────────────────────────────
-function setupLogoMenu() {
-    const btn  = document.getElementById('logo-btn');
-    const menu = document.getElementById('dropdown');
-
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = menu.classList.toggle('show');
-        btn.classList.toggle('open', isOpen);
-        btn.setAttribute('aria-expanded', isOpen);
-    });
-
-    document.addEventListener('click', () => {
-        menu.classList.remove('show');
-        btn.classList.remove('open');
-    });
-
-    // Acessibilidade: abrir com Enter/Espaço
-    btn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            btn.click();
-        }
-    });
-}
-
-// ── Teclado global ───────────────────────────────────────────
 function setupKeyboard() {
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closePlayer();
-            toggleModal(false);
-        }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closePlayer(); toggleModal(false); }
     });
 }
 
-// ── Modal ────────────────────────────────────────────────────
-function toggleModal(show) {
-    const modal = document.getElementById('config-modal');
-    if (show) {
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-        document.getElementById('m3u-url').focus();
-    } else {
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-        setStatus('', '');
+/* ══ Carregar desportos (tabs) ════════════════ */
+async function loadSports() {
+    try {
+        const data = await apiFetch({ data: 'sports' });
+        const sports = Array.isArray(data) ? data : (data.sports || data.categories || []);
+
+        if (!sports.length) throw new Error('Sem categorias');
+
+        state.sports = sports;
+        renderTabs(sports);
+
+        // Activa o primeiro
+        const first = sports[0];
+        const catKey = (first.category || first.slug || first.name || '').toLowerCase();
+        switchSport(catKey);
+
+    } catch (e) {
+        console.error('loadSports:', e);
+        // Fallback com categorias fixas
+        const fallback = [
+            { name: 'Football',    category: 'football'   },
+            { name: 'Basketball',  category: 'basketball' },
+            { name: 'Tennis',      category: 'tennis'     },
+            { name: 'MMA / UFC',   category: 'mma'        },
+        ];
+        state.sports = fallback;
+        renderTabs(fallback);
+        switchSport('football');
     }
 }
 
-// ── Tabs ─────────────────────────────────────────────────────
-function switchTab(tab) {
-    state.tab = tab;
-    const tvTab  = document.getElementById('tab-tv');
-    const stTab  = document.getElementById('tab-streams');
+function renderTabs(sports) {
+    const nav = document.getElementById('sport-tabs');
+    nav.innerHTML = '';
 
-    tvTab.classList.toggle('active', tab === 'tv');
-    tvTab.setAttribute('aria-selected', tab === 'tv');
-    stTab.classList.toggle('active', tab === 'streams');
-    stTab.setAttribute('aria-selected', tab === 'streams');
+    // Tab "Livestreams" (manual)
+    const extraSports = [...sports, { name: 'Livestreams', category: '_streams', icon: 'fa-broadcast-tower' }];
+
+    extraSports.forEach((sport, i) => {
+        const cat  = (sport.category || sport.slug || sport.name || '').toLowerCase();
+        const name = sport.name || sport.category || cat;
+        const icon = sport.icon || SPORT_ICONS[cat] || SPORT_ICONS.default;
+
+        const btn = document.createElement('button');
+        btn.className = 'sport-tab';
+        btn.id = `tab-${cat}`;
+        btn.setAttribute('role', 'tab');
+        btn.dataset.cat = cat;
+        btn.innerHTML = `<i class="fas ${icon}"></i>${name}`;
+        btn.style.animationDelay = `${i * 0.04}s`;
+
+        btn.addEventListener('click', () => switchSport(cat));
+        nav.appendChild(btn);
+    });
+}
+
+/* ══ Trocar de desporto ═══════════════════════ */
+async function switchSport(cat) {
+    state.activeTab = cat;
+
+    document.querySelectorAll('.sport-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.cat === cat);
+    });
 
     clearSearch();
-    filterChannels();
-}
+    document.getElementById('main-content').innerHTML = '';
+    document.getElementById('hero-featured').style.display = 'none';
+    document.getElementById('live-bar').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'none';
 
-// ── Pesquisa ─────────────────────────────────────────────────
-function toggleSearch() {
-    const box = document.getElementById('search-box');
-    const field = document.getElementById('search-field');
-    const isExpanded = box.classList.toggle('expanded');
-    if (isExpanded) field.focus();
-    else { field.value = ''; filterChannels(); }
-}
-
-function clearSearch() {
-    const field = document.getElementById('search-field');
-    const clear = document.getElementById('search-clear');
-    const box   = document.getElementById('search-box');
-    field.value = '';
-    clear.classList.remove('visible');
-    box.classList.remove('expanded');
-}
-
-function filterChannels() {
-    clearTimeout(state.searchTimer);
-    const field = document.getElementById('search-field');
-    const clear = document.getElementById('search-clear');
-    const query = field.value.trim().toLowerCase();
-
-    clear.classList.toggle('visible', query.length > 0);
-
-    state.searchTimer = setTimeout(() => {
-        if (state.tab === 'tv') {
-            const filtered = query
-                ? state.channels.filter(c => c.name.toLowerCase().includes(query) || (c.group || '').toLowerCase().includes(query))
-                : state.channels;
-            renderTV(filtered, query.length > 0);
-        } else {
-            const filtered = query
-                ? state.streams.filter(s => s.name.toLowerCase().includes(query))
-                : state.streams;
-            renderStreams(filtered);
-        }
-    }, 200);
-}
-
-// ── Render TV ────────────────────────────────────────────────
-function renderTV(data, isSearch = false) {
-    const container = document.getElementById('main-content');
-    const hero      = document.getElementById('hero-featured');
-    const empty     = document.getElementById('empty-state');
-    container.innerHTML = '';
-
-    if (data.length === 0 && !isSearch) {
-        hero.style.display = 'none';
-        empty.style.display = 'flex';
+    if (cat === '_streams') {
+        renderManualStreams();
         return;
     }
 
-    empty.style.display = 'none';
+    showSkeletons();
 
-    if (!isSearch && data.length > 0) {
-        hero.style.display = 'flex';
-        setupHero(data);
-    } else {
-        hero.style.display = 'none';
+    try {
+        const data = await apiFetch({ data: 'matches', category: cat });
+        state.matches = Array.isArray(data) ? data : (data.matches || data.events || []);
+        renderMatches(state.matches);
+    } catch (e) {
+        console.error('switchSport:', e);
+        showEmpty('Erro ao carregar', 'Não foi possível obter os jogos. Verifica a ligação.');
+    }
+}
+
+/* ══ Render matches ══════════════════════════ */
+function renderMatches(matches) {
+    clearSkeletons();
+    const container = document.getElementById('main-content');
+    container.innerHTML = '';
+
+    if (!matches.length) {
+        showEmpty();
+        return;
     }
 
-    // Agrupa por grupo
+    // Separa live vs upcoming
+    const live     = matches.filter(isLive);
+    const upcoming = matches.filter(m => !isLive(m));
+
+    // Hero com um jogo ao vivo (ou o primeiro)
+    const heroMatch = live[0] || upcoming[0];
+    if (heroMatch) setupHero(heroMatch);
+
+    // Ticker de jogos ao vivo
+    if (live.length) renderLiveBar(live);
+
+    // Agrupa upcoming por liga/competição
     const groups = {};
-    data.forEach(ch => {
-        const g = ch.group || 'Geral';
-        (groups[g] = groups[g] || []).push(ch);
+    matches.forEach(m => {
+        const key = m.league || m.competition || m.category || 'Outros';
+        (groups[key] = groups[key] || []).push(m);
     });
 
-    Object.keys(groups).sort().forEach((group, idx) => {
-        const row = document.createElement('div');
-        row.className = 'row';
-        row.style.animationDelay = `${idx * 0.05}s`;
-
-        const header = document.createElement('div');
-        header.className = 'row-header';
-        header.innerHTML = `
-            <div class="row-title">${sanitizeText(group)}</div>
-            <span class="row-count">${groups[group].length} canais</span>
-        `;
-        row.appendChild(header);
-
-        const carousel = document.createElement('div');
-        carousel.className = 'carousel';
-
-        groups[group].forEach(ch => {
-            carousel.appendChild(createChannelCard(ch));
-        });
-
-        row.appendChild(carousel);
+    Object.entries(groups).forEach(([league, items], idx) => {
+        const row = createRow(league, items.length, idx);
+        const carousel = row.querySelector('.carousel');
+        items.forEach(m => carousel.appendChild(createMatchCard(m)));
         container.appendChild(row);
     });
 }
 
-function createChannelCard(ch) {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.setAttribute('role', 'button');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', `Assistir ${ch.name}`);
-
-    const img = document.createElement('img');
-    img.className = 'card-img';
-    img.alt = ch.name;
-    img.loading = 'lazy';
-    img.src = ch.logo || PLACEHOLDER;
-    img.onerror = () => { img.src = PLACEHOLDER; };
-
-    const info = document.createElement('div');
-    info.className = 'card-info';
-    info.textContent = ch.name;
-
-    const hint = document.createElement('div');
-    hint.className = 'card-play-hint';
-    hint.innerHTML = '<i class="fas fa-play" aria-hidden="true"></i>';
-
-    card.appendChild(img);
-    card.appendChild(hint);
-    card.appendChild(info);
-
-    // Clique abre no VLC via intent (Android)
-    const openVLC = () => {
-        window.location.href = `intent:${ch.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
-    };
-
-    card.addEventListener('click', openVLC);
-    card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVLC(); }
-    });
-
-    return card;
+function isLive(match) {
+    const t = (match.time || match.status || match.date || '').toLowerCase();
+    return t.includes('live') || t.includes('ao vivo') || t === 'live' || match.live === true || match.status === 'live';
 }
 
-// ── Render Streams ───────────────────────────────────────────
-function renderStreams(data) {
-    document.getElementById('hero-featured').style.display = 'none';
-    const container = document.getElementById('main-content');
-    const empty     = document.getElementById('empty-state');
-    container.innerHTML = '';
-
-    if (data.length === 0 && state.streams.length === 0) {
-        empty.style.display = 'flex';
-        return;
+function getMatchTime(match) {
+    const raw = match.time || match.date || match.start || '';
+    if (!raw) return '';
+    // Unix timestamp
+    if (/^\d{10,}$/.test(String(raw))) {
+        return new Date(parseInt(raw) * 1000).toLocaleString('pt-PT', { weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
     }
-    empty.style.display = 'none';
+    return raw;
+}
 
+function getTeamNames(match) {
+    // Diferentes formatos possíveis da API
+    if (match.home && match.away) return { home: match.home, away: match.away };
+    if (match.team1 && match.team2) return { home: match.team1, away: match.team2 };
+    if (match.teams) {
+        const parts = match.teams.split(/\s+vs\.?\s+/i);
+        if (parts.length === 2) return { home: parts[0].trim(), away: parts[1].trim() };
+    }
+    if (match.title) {
+        const parts = match.title.split(/\s+vs\.?\s+/i);
+        if (parts.length === 2) return { home: parts[0].trim(), away: parts[1].trim() };
+        return { home: match.title, away: '' };
+    }
+    return { home: 'Equipa A', away: 'Equipa B' };
+}
+
+function createRow(league, count, idx) {
     const row = document.createElement('div');
     row.className = 'row';
-
-    const header = document.createElement('div');
-    header.className = 'row-header';
-    header.innerHTML = `
-        <div class="row-title">Livestreams Navegador</div>
-        <span class="row-count">${state.streams.length} streams</span>
+    row.style.animationDelay = `${idx * 0.06}s`;
+    row.innerHTML = `
+        <div class="row-header">
+            <div class="row-title">${sanitize(league)}</div>
+            <span class="row-count">${count} jogo${count !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="carousel"></div>
     `;
-    row.appendChild(header);
-
-    const carousel = document.createElement('div');
-    carousel.className = 'carousel';
-
-    if (data.length === 0) {
-        const msg = document.createElement('p');
-        msg.style.cssText = 'color:var(--text-dim);font-size:0.82rem;padding:20px 0';
-        msg.textContent = 'Nenhum resultado encontrado.';
-        carousel.appendChild(msg);
-    }
-
-    data.forEach(link => {
-        // Usa o índice real na lista original para o delete
-        const realIndex = state.streams.findIndex(s => s.id === link.id);
-        carousel.appendChild(createStreamCard(link, realIndex));
-    });
-
-    row.appendChild(carousel);
-    container.appendChild(row);
+    return row;
 }
 
-function createStreamCard(link, realIndex) {
+function createMatchCard(match) {
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'match-card' + (isLive(match) ? ' is-live' : '');
     card.setAttribute('role', 'button');
     card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', `Abrir ${link.name}`);
 
-    const thumb = document.createElement('div');
-    thumb.className = 'card-stream-thumb';
-    thumb.innerHTML = `
-        <div class="stream-icon"><i class="fas fa-broadcast-tower" aria-hidden="true"></i></div>
-        <span class="stream-label">${sanitizeText(link.name)}</span>
+    const { home, away } = getTeamNames(match);
+    const timeStr = isLive(match) ? 'AO VIVO' : getMatchTime(match);
+    const league  = sanitize(match.league || match.competition || '');
+
+    // Poster ou placeholder com badges
+    const hasPoster = match.poster || match.image || match.banner;
+    const posterHTML = hasPoster
+        ? `<img class="card-poster" src="${sanitize(hasPoster)}" alt="${sanitize(home)} vs ${sanitize(away)}" loading="lazy" onerror="this.parentNode.innerHTML=buildCardPlaceholder('${sanitize(home)}','${sanitize(away)}',this)">`
+        : buildCardPlaceholder(home, away);
+
+    card.innerHTML = `
+        ${posterHTML}
+        <div class="card-body">
+            <div class="card-teams">${sanitize(home)}${away ? ` vs ${sanitize(away)}` : ''}</div>
+            ${league ? `<div class="card-league">${league}</div>` : ''}
+            <div class="card-time ${isLive(match) ? 'live' : ''}">
+                <i class="fas ${isLive(match) ? 'fa-circle' : 'fa-clock'}"></i>
+                ${sanitize(timeStr)}
+            </div>
+        </div>
+        <div class="card-play-overlay"><i class="fas fa-play"></i></div>
     `;
 
-    const hint = document.createElement('div');
-    hint.className = 'card-play-hint';
-    hint.innerHTML = '<i class="fas fa-external-link-alt" aria-hidden="true"></i>';
-
-    const btnDel = document.createElement('button');
-    btnDel.className = 'btn-delete';
-    btnDel.setAttribute('aria-label', `Apagar ${link.name}`);
-    btnDel.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
-    btnDel.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteStream(realIndex);
-    });
-
-    card.appendChild(thumb);
-    card.appendChild(hint);
-    card.appendChild(btnDel);
-
-    const openStream = () => playInternal(link.url, link.name);
-    card.addEventListener('click', openStream);
-    card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openStream(); }
-    });
+    const open = () => openMatch(match);
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
 
     return card;
 }
 
-// ── Player ───────────────────────────────────────────────────
-function playInternal(url, title = '') {
-    if (!isValidUrl(url)) {
-        showToast('URL inválido', 'error');
+function buildCardPlaceholder(home, away) {
+    const initH = (home || '?')[0].toUpperCase();
+    const initA = (away || '?')[0].toUpperCase();
+    return `<div class="card-poster-placeholder">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem">${initH}</div>
+        <span class="card-vs">VS</span>
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem">${initA}</div>
+    </div>`;
+}
+
+/* ══ Hero ═════════════════════════════════════ */
+function setupHero(match) {
+    const hero   = document.getElementById('hero-featured');
+    const bg     = document.getElementById('hero-bg');
+    const { home, away } = getTeamNames(match);
+    const cat    = state.activeTab || 'default';
+
+    document.getElementById('hero-teams').innerHTML =
+        `${sanitize(home)}<span class="hero-vs">VS</span>${sanitize(away)}`;
+    document.getElementById('hero-league').textContent =
+        match.league || match.competition || '';
+    document.getElementById('hero-time').textContent =
+        isLive(match) ? '🔴 Ao vivo agora' : getMatchTime(match);
+
+    // Imagem de fundo
+    const imgSrc = match.poster || match.image || SPORT_BGSRC[cat] || SPORT_BGSRC.default;
+    bg.style.backgroundImage = `url('${imgSrc}')`;
+    bg.style.opacity = '0';
+    setTimeout(() => { bg.style.transition = 'opacity .8s ease'; bg.style.opacity = '1'; }, 50);
+
+    document.getElementById('hero-play').onclick = () => openMatch(match);
+    hero.style.display = 'flex';
+}
+
+/* ══ Live ticker ══════════════════════════════ */
+function renderLiveBar(liveMatches) {
+    const bar   = document.getElementById('live-bar');
+    const track = document.getElementById('live-bar-track');
+    track.innerHTML = '';
+
+    liveMatches.forEach(m => {
+        const { home, away } = getTeamNames(m);
+        const pill = document.createElement('div');
+        pill.className = 'live-pill';
+        pill.innerHTML = `<span class="live-pill-dot"></span>${sanitize(home)} vs ${sanitize(away)}`;
+        pill.addEventListener('click', () => openMatch(m));
+        track.appendChild(pill);
+    });
+
+    bar.style.display = 'flex';
+}
+
+/* ══ Abrir jogo / obter stream ════════════════ */
+async function openMatch(match) {
+    state.currentMatch = match;
+    const { home, away } = getTeamNames(match);
+
+    document.getElementById('player-title').textContent  = `${home}${away ? ` vs ${away}` : ''}`;
+    document.getElementById('player-subtitle').textContent = match.league || match.competition || '';
+    document.getElementById('stream-sources').innerHTML = '';
+
+    showPlayer();
+
+    try {
+        const cat = state.activeTab;
+        const id  = match.id || match.match_id || match.event_id || match.slug;
+
+        if (!id) throw new Error('Sem ID de jogo');
+
+        const detail = await apiFetch({ data: 'detail', category: cat, id });
+        handleStreamDetail(detail, match);
+
+    } catch (e) {
+        console.error('openMatch:', e);
+        // Tenta usar embed direto se já existir no objeto
+        if (match.embed || match.stream || match.url) {
+            loadIframe(match.embed || match.stream || match.url);
+        } else {
+            hideSpinner();
+            showToast('Sem stream disponível para este jogo', 'error');
+        }
+    }
+}
+
+function handleStreamDetail(detail, match) {
+    // A API pode devolver vários formatos
+    let sources = [];
+
+    if (Array.isArray(detail)) {
+        sources = detail;
+    } else if (detail.streams && Array.isArray(detail.streams)) {
+        sources = detail.streams;
+    } else if (detail.embed) {
+        sources = [{ label: 'Stream 1', url: detail.embed }];
+    } else if (detail.url) {
+        sources = [{ label: 'Stream 1', url: detail.url }];
+    } else if (typeof detail === 'string' && detail.startsWith('http')) {
+        sources = [{ label: 'Stream 1', url: detail }];
+    }
+
+    // Fallback: tenta campos alternativos no match original
+    if (!sources.length && (match.embed || match.stream)) {
+        sources = [{ label: 'Stream 1', url: match.embed || match.stream }];
+    }
+
+    if (!sources.length) {
+        hideSpinner();
+        showToast('Stream não disponível neste momento', 'error', 4000);
         return;
     }
 
-    const container = document.getElementById('video-player-container');
-    const video     = document.getElementById('main-video');
-    const iframe    = document.getElementById('main-iframe');
-    const spinner   = document.getElementById('player-spinner');
-    const titleEl   = document.getElementById('player-title');
+    state.currentSources = sources;
+    renderSourceButtons(sources);
+    loadIframe(sources[0].url || sources[0].embed || sources[0].src);
+}
 
-    titleEl.textContent = title;
-    container.style.display = 'flex';
-    container.setAttribute('aria-hidden', 'false');
-    spinner.style.display = 'flex';
+function renderSourceButtons(sources) {
+    const bar = document.getElementById('stream-sources');
+    bar.innerHTML = '';
+    if (sources.length <= 1) return;
 
-    // Testa se é stream de vídeo direto
-    const isDirect = /\.(m3u8|mp4|ts|mkv|avi|webm)(\?|$)/i.test(url);
+    sources.forEach((src, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'src-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = src.label || src.name || `Fonte ${i + 1}`;
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            showSpinner();
+            loadIframe(src.url || src.embed || src.src);
+        });
+        bar.appendChild(btn);
+    });
+}
 
-    if (isDirect) {
-        iframe.style.display = 'none';
-        iframe.src = '';
-        video.style.display = 'block';
-        video.src = url;
-        video.addEventListener('canplay', () => { spinner.style.display = 'none'; }, { once: true });
-        video.play().catch(() => { spinner.style.display = 'none'; });
-    } else {
-        video.style.display = 'none';
-        video.src = '';
-        iframe.style.display = 'block';
+function loadIframe(url) {
+    const iframe = document.getElementById('main-iframe');
+    showSpinner();
+    iframe.src = '';
+    setTimeout(() => {
         iframe.src = url;
-        iframe.addEventListener('load', () => { spinner.style.display = 'none'; }, { once: true });
-        // Fallback: esconde spinner após 5s
-        setTimeout(() => { spinner.style.display = 'none'; }, 5000);
-    }
+        iframe.onload = hideSpinner;
+        // Timeout de segurança
+        setTimeout(hideSpinner, 8000);
+    }, 100);
+}
 
+/* ══ Player ════════════════════════════════════ */
+function showPlayer() {
+    const c = document.getElementById('video-player-container');
+    c.style.display = 'flex';
+    c.setAttribute('aria-hidden', 'false');
+    showSpinner();
     document.body.style.overflow = 'hidden';
 }
 
 function closePlayer() {
-    const video   = document.getElementById('main-video');
-    const iframe  = document.getElementById('main-iframe');
-    const container = document.getElementById('video-player-container');
-
-    video.pause();
-    video.src = '';
-    video.style.display = 'none';
+    const iframe = document.getElementById('main-iframe');
     iframe.src = '';
-    iframe.style.display = 'none';
-    container.style.display = 'none';
-    container.setAttribute('aria-hidden', 'true');
-    document.getElementById('player-spinner').style.display = 'none';
+    document.getElementById('video-player-container').style.display = 'none';
+    document.getElementById('video-player-container').setAttribute('aria-hidden', 'true');
+    hideSpinner();
     document.body.style.overflow = '';
 }
 
-// ── Adicionar stream direto ──────────────────────────────────
-function addDirectStream() {
-    const urlInput  = document.getElementById('direct-stream-url');
-    const nameInput = document.getElementById('direct-stream-name');
-    const url  = urlInput.value.trim();
-    const name = nameInput.value.trim() || `Stream ${state.streams.length + 1}`;
+function showSpinner() { document.getElementById('player-spinner').style.display = 'flex'; }
+function hideSpinner() { document.getElementById('player-spinner').style.display = 'none'; }
 
-    if (!url) {
-        showToast('Por favor insere um URL', 'error');
-        return;
-    }
-    if (!isValidUrl(url)) {
-        showToast('URL inválido — deve começar por https:// ou http://', 'error');
-        return;
-    }
-
-    state.streams.push({ id: Date.now().toString(), name, url });
-    localStorage.setItem('sl_streams', JSON.stringify(state.streams));
-    urlInput.value = '';
-    nameInput.value = '';
-    toggleModal(false);
-    switchTab('streams');
-    showToast(`"${name}" adicionado!`, 'success');
+/* ══ Pesquisa ══════════════════════════════════ */
+function toggleSearch() {
+    const box = document.getElementById('search-box');
+    const field = document.getElementById('search-field');
+    const expanded = box.classList.toggle('expanded');
+    if (expanded) field.focus();
+    else { field.value = ''; filterMatches(); }
 }
 
-function deleteStream(index) {
-    if (index < 0 || index >= state.streams.length) return;
-    const name = state.streams[index].name;
-    state.streams.splice(index, 1);
-    localStorage.setItem('sl_streams', JSON.stringify(state.streams));
-    renderStreams(state.streams);
-    showToast(`"${name}" removido`, 'info');
+function clearSearch() {
+    document.getElementById('search-field').value = '';
+    document.getElementById('search-clear').classList.remove('visible');
+    document.getElementById('search-box').classList.remove('expanded');
+    filterMatches();
 }
 
-// ── Tabs do modal de importação ──────────────────────────────
-function switchImportTab(tab) {
-    document.querySelectorAll('.import-tab').forEach(el => {
-        el.classList.toggle('active', el.dataset.tab === tab);
-    });
-    document.querySelectorAll('.import-panel').forEach(el => {
-        el.classList.toggle('active', el.id === `panel-${tab}`);
-    });
+function filterMatches() {
+    const q = document.getElementById('search-field').value.trim().toLowerCase();
+    document.getElementById('search-clear').classList.toggle('visible', q.length > 0);
+
+    if (state.activeTab === '_streams') return;
+
+    const filtered = q
+        ? state.matches.filter(m => {
+            const { home, away } = getTeamNames(m);
+            return home.toLowerCase().includes(q) || away.toLowerCase().includes(q)
+                || (m.league || '').toLowerCase().includes(q);
+          })
+        : state.matches;
+
+    renderMatches(filtered);
 }
 
-// ── Carregar M3U por URL ─────────────────────────────────────
-async function loadFromUrl() {
-    const urlInput = document.getElementById('m3u-url');
-    const btnLoad  = document.getElementById('btn-load-m3u');
-    const url      = urlInput.value.trim();
-
-    if (!url) { setStatus('m3u-status', 'Insere o URL da playlist.', 'error'); return; }
-    if (!isValidUrl(url)) { setStatus('m3u-status', 'URL inválido — deve começar por http:// ou https://', 'error'); return; }
-
-    btnLoad.disabled = true;
-
-    // Lista de estratégias de download
-    const strategies = [
-        {
-            label: 'Download direto',
-            run: async () => {
-                const ctrl = new AbortController();
-                const timer = setTimeout(() => ctrl.abort(), 12000);
-                try {
-                    const res = await fetch(url, {
-                        signal: ctrl.signal,
-                        cache: 'no-cache',
-                    });
-                    clearTimeout(timer);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return await res.text();
-                } catch (e) {
-                    clearTimeout(timer);
-                    throw e;
-                }
-            }
-        },
-        {
-            label: 'Proxy corsproxy.io',
-            run: () => fetchProxy(`https://corsproxy.io/?${encodeURIComponent(url)}`, 'text'),
-        },
-        {
-            label: 'Proxy allorigins',
-            run: () => fetchProxy(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 'allorigins'),
-        },
-        {
-            label: 'Proxy codetabs',
-            run: () => fetchProxy(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, 'text'),
-        },
-        {
-            label: 'Proxy thingproxy',
-            run: () => fetchProxy(`https://thingproxy.freeboard.io/fetch/${url}`, 'text'),
-        },
-    ];
-
-    let content = null;
-    let errors  = [];
-
-    for (let i = 0; i < strategies.length; i++) {
-        const s = strategies[i];
-        const pct = Math.round(((i + 0.5) / strategies.length) * 90);
-        setStatus('m3u-status', `A tentar: ${s.label}…`, 'loading', pct);
-
-        try {
-            const text = await s.run();
-            if (!text || !text.trim()) throw new Error('Resposta vazia');
-
-            // Aceita mesmo sem cabeçalho #EXTM3U (alguns servidores não enviam)
-            if (text.trim().startsWith('#EXTM3U') || text.includes('#EXTINF')) {
-                content = text;
-                break;
-            } else {
-                // Log para debug
-                console.warn(`[${s.label}] Conteúdo não reconhecido:`, text.slice(0, 200));
-                errors.push(`${s.label}: conteúdo não é M3U`);
-            }
-        } catch (e) {
-            console.warn(`[${s.label}] Falhou:`, e.message);
-            errors.push(`${s.label}: ${e.message}`);
-        }
-    }
-
-    btnLoad.disabled = false;
-
-    if (!content) {
-        console.error('Todos os proxies falharam:', errors);
-        setStatus('m3u-status',
-            `Não foi possível descarregar a playlist após ${strategies.length} tentativas. ` +
-            `Tenta usar a aba "Ficheiro" ou "Colar" para importar diretamente.`,
-            'error', 0
-        );
-        return;
-    }
-
-    processM3UContent(content, 'm3u-status');
+/* ══ Skeletons ═════════════════════════════════ */
+function showSkeletons() {
+    const c = document.getElementById('main-content');
+    c.innerHTML = Array(3).fill(0).map(() => `
+        <div class="row" style="margin-bottom:8px;padding:0 4%">
+            <div class="row-header"><div style="width:120px;height:14px;border-radius:4px;background:rgba(255,255,255,.06);animation:shimmer 1.3s infinite"></div></div>
+            <div class="carousel">${Array(5).fill(`<div style="flex:0 0 220px;height:190px;border-radius:10px;background:rgba(255,255,255,.05);animation:shimmer 1.3s infinite"></div>`).join('')}</div>
+        </div>
+    `).join('');
 }
 
-// Fetch via proxy com timeout manual
-async function fetchProxy(proxyUrl, mode) {
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 12000);
-    try {
-        const res = await fetch(proxyUrl, { signal: ctrl.signal, cache: 'no-cache' });
-        clearTimeout(timer);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+function clearSkeletons() { /* renderMatches substitui o conteúdo */ }
 
-        const text = await res.text();
-
-        if (mode === 'allorigins') {
-            // allorigins devolve JSON: { contents: "..." }
-            try {
-                const json = JSON.parse(text);
-                if (json && typeof json.contents === 'string') return json.contents;
-            } catch {}
-            // Se falhou o parse, usa o texto tal como está
-            return text;
-        }
-
-        return text; // 'text' — devolve diretamente
-    } catch (e) {
-        clearTimeout(timer);
-        throw e;
-    }
-}
-
-// ── Carregar M3U por ficheiro ────────────────────────────────
-function loadFromFile(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const zone = document.getElementById('file-drop-zone');
-    const icon = zone.querySelector('i');
-    icon.className = 'fas fa-spinner fa-spin';
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        icon.className = 'fas fa-cloud-upload-alt';
-        const content = e.target.result;
-        if (!content || (!content.includes('#EXTINF') && !content.trim().startsWith('#EXTM3U'))) {
-            setStatus('file-status', 'O ficheiro não parece ser uma playlist M3U válida.', 'error');
-            return;
-        }
-        processM3UContent(content, 'file-status');
-    };
-    reader.onerror = () => {
-        icon.className = 'fas fa-cloud-upload-alt';
-        setStatus('file-status', 'Erro ao ler o ficheiro.', 'error');
-    };
-    reader.readAsText(file, 'UTF-8');
-}
-
-// ── Carregar M3U por colagem de texto ────────────────────────
-function loadFromPaste() {
-    const content = document.getElementById('paste-content').value.trim();
-    if (!content) {
-        setStatus('paste-status', 'Cola o conteúdo M3U antes de importar.', 'error');
-        return;
-    }
-    if (!content.includes('#EXTINF') && !content.startsWith('#EXTM3U')) {
-        setStatus('paste-status', 'O conteúdo não parece ser uma playlist M3U válida.', 'error');
-        return;
-    }
-    processM3UContent(content, 'paste-status');
-}
-
-// ── Processar conteúdo M3U (ponto de entrada comum) ──────────
-function processM3UContent(content, statusId) {
-    setStatus(statusId, 'A processar canais…', 'loading', 95);
-
-    // Delay mínimo para o browser renderizar o status
-    setTimeout(() => {
-        const channels = parseM3U(content);
-
-        if (channels.length === 0) {
-            setStatus(statusId, 'A playlist não contém canais reconhecíveis.', 'error', 0);
-            return;
-        }
-
-        state.channels = channels;
-        try {
-            localStorage.setItem('sl_channels', JSON.stringify(channels));
-        } catch (e) {
-            // localStorage cheio — guarda só os primeiros 500
-            localStorage.setItem('sl_channels', JSON.stringify(channels.slice(0, 500)));
-            showToast('Lista grande: guardados os primeiros 500 canais', 'info', 5000);
-        }
-
-        setStatus(statusId, `✓ ${channels.length} canais importados com sucesso!`, 'success', 100);
-        showToast(`${channels.length} canais importados!`, 'success', 4000);
-
-        setTimeout(() => {
-            toggleModal(false);
-            switchTab('tv');
-        }, 1000);
-    }, 50);
-}
-
-// ── Status do modal ──────────────────────────────────────────
-function setStatus(elementId, msg, type = '', progress = 0) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    if (!msg) { el.innerHTML = ''; el.className = 'status-msg'; return; }
-
-    const progressBar = type === 'loading' ? `
-        <div class="progress-bar">
-            <div class="progress-fill" style="width:${progress}%"></div>
-        </div>` : '';
-
-    el.innerHTML = `${sanitizeText(msg)}${progressBar}`;
-    el.className = `status-msg ${type}`;
-}
-
-// Alias antigo para compatibilidade
-function showStatus(msg, type) { setStatus('m3u-status', msg, type, 0); }
-
-// ── Parsear M3U ──────────────────────────────────────────────
-function parseM3U(content) {
-    const lines = content.replace(/\r/g, '').split('\n');
-    const channels = [];
-    let current = null;
-
-    lines.forEach(rawLine => {
-        const line = rawLine.trim();
-
-        if (line.startsWith('#EXTINF:')) {
-            current = {};
-            current.name  = (line.split(',').slice(1).join(',') || '').trim();
-            current.group = (line.match(/group-title="([^"]+)"/i)?.[1] || 'Geral').trim();
-            current.logo  = (line.match(/tvg-logo="([^"]+)"/i)?.[1] || '').trim();
-            current.id    = Math.random().toString(36).slice(2);
-        } else if (line && !line.startsWith('#') && current) {
-            // Aceita http e https
-            if (/^https?:\/\//i.test(line)) {
-                current.url = line;
-                if (current.name) channels.push(current);
-            }
-            current = null;
-        }
-    });
-
-    return channels;
-}
-
-// ── Hero ─────────────────────────────────────────────────────
-const HERO_IMAGES = [
-    'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=1200',
-    'https://images.unsplash.com/photo-1586899028174-e7098604235b?q=80&w=1200',
-    'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?q=80&w=1200',
-    'https://images.unsplash.com/photo-1593784991095-a205069470b6?q=80&w=1200',
-    'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=80&w=1200',
-];
-
-function setupHero(data) {
-    if (!data.length) return;
-    const random = data[Math.floor(Math.random() * Math.min(data.length, 20))];
-    state.heroChannel = random;
-
-    document.getElementById('hero-name').textContent  = random.name;
-    document.getElementById('hero-group').textContent = random.group || '';
-
-    const bgEl = document.getElementById('hero-bg');
-    const imgUrl = HERO_IMAGES[Math.floor(Math.random() * HERO_IMAGES.length)];
-    bgEl.style.backgroundImage = `url('${imgUrl}')`;
-    bgEl.style.opacity = '0';
-    setTimeout(() => { bgEl.style.opacity = '1'; }, 50);
-
-    document.getElementById('hero-play').onclick = () => {
-        window.location.href = `intent:${random.url}#Intent;package=org.videolan.vlc;type=video/*;end`;
-    };
-    document.getElementById('hero-info').onclick = () => {
-        showToast(`${random.name} — ${random.group || 'Geral'}`, 'info', 2500);
-    };
-}
-
-// ── Mostrar estado vazio ─────────────────────────────────────
-function showEmpty() {
-    document.getElementById('hero-featured').style.display = 'none';
+/* ══ Empty / Error ═════════════════════════════ */
+function showEmpty(title = 'Sem jogos disponíveis', desc = 'Não há jogos agendados nesta categoria de momento.') {
     document.getElementById('main-content').innerHTML = '';
+    document.getElementById('hero-featured').style.display = 'none';
+    document.getElementById('live-bar').style.display = 'none';
+    document.getElementById('empty-title').textContent = title;
+    document.getElementById('empty-desc').textContent  = desc;
     document.getElementById('empty-state').style.display = 'flex';
 }
 
-// ── Apagar todos os dados ────────────────────────────────────
-function clearAllData() {
-    if (!confirm('Tens a certeza que queres apagar todos os canais e streams?')) return;
-    state.channels = [];
-    state.streams  = [];
-    localStorage.removeItem('sl_channels');
-    localStorage.removeItem('sl_streams');
-    // Limpeza de chaves antigas
-    localStorage.removeItem('my_channels');
-    localStorage.removeItem('direct_links');
-    document.getElementById('dropdown').classList.remove('show');
-    showEmpty();
-    showToast('Dados apagados', 'info');
+/* ══ Refresh ═══════════════════════════════════ */
+function refreshData() {
+    const icon = document.getElementById('refresh-icon');
+    icon.classList.add('fa-spin');
+    const cat = state.activeTab;
+    if (cat) {
+        switchSport(cat).finally(() => setTimeout(() => icon.classList.remove('fa-spin'), 600));
+    } else {
+        loadSports().finally(() => setTimeout(() => icon.classList.remove('fa-spin'), 600));
+    }
 }
 
-// ── Migração de dados antigos ────────────────────────────────
-(function migrateOldData() {
-    const oldChannels = safeParseJSON(localStorage.getItem('my_channels'), null);
-    const oldStreams  = safeParseJSON(localStorage.getItem('direct_links'), null);
+/* ══ Livestreams manuais ═══════════════════════ */
+function renderManualStreams() {
+    document.getElementById('hero-featured').style.display = 'none';
+    document.getElementById('live-bar').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'none';
 
-    if (oldChannels && state.channels.length === 0) {
-        state.channels = oldChannels.map(c => ({ ...c, id: Math.random().toString(36).slice(2) }));
-        localStorage.setItem('sl_channels', JSON.stringify(state.channels));
+    const container = document.getElementById('main-content');
+    container.innerHTML = '';
+
+    if (!state.streams.length) {
+        showEmpty('Sem livestreams', 'Adiciona streams manuais clicando no botão + no cabeçalho.');
+        return;
     }
-    if (oldStreams && state.streams.length === 0) {
-        state.streams = oldStreams.map(s => ({ ...s, id: Math.random().toString(36).slice(2) }));
-        localStorage.setItem('sl_streams', JSON.stringify(state.streams));
+
+    const row = createRow('Livestreams', state.streams.length, 0);
+    const carousel = row.querySelector('.carousel');
+
+    state.streams.forEach((s, i) => {
+        const card = document.createElement('div');
+        card.className = 'match-card';
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.innerHTML = `
+            <div class="card-poster-placeholder">
+                <div style="width:44px;height:44px;border-radius:50%;background:rgba(229,9,20,.15);border:1px solid rgba(229,9,20,.3);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:1.1rem">
+                    <i class="fas fa-broadcast-tower"></i>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="card-teams">${sanitize(s.name)}</div>
+                <div class="card-time"><i class="fas fa-link"></i> Stream direto</div>
+            </div>
+            <div class="card-play-overlay"><i class="fas fa-external-link-alt"></i></div>
+        `;
+        const open = () => {
+            document.getElementById('player-title').textContent  = s.name;
+            document.getElementById('player-subtitle').textContent = 'Livestream';
+            document.getElementById('stream-sources').innerHTML = '';
+            showPlayer();
+            loadIframe(s.url);
+        };
+        card.addEventListener('click', open);
+        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+        carousel.appendChild(card);
+    });
+
+    container.appendChild(row);
+}
+
+function addDirectStream() {
+    const urlEl  = document.getElementById('direct-stream-url');
+    const nameEl = document.getElementById('direct-stream-name');
+    const url    = urlEl.value.trim();
+    const name   = nameEl.value.trim() || `Stream ${state.streams.length + 1}`;
+
+    if (!url)            { showToast('Insere um URL', 'error'); return; }
+    if (!isValidUrl(url)) { showToast('URL inválido', 'error'); return; }
+
+    state.streams.push({ id: Date.now().toString(), name, url });
+    localStorage.setItem('sl_streams', JSON.stringify(state.streams));
+    urlEl.value = ''; nameEl.value = '';
+    showToast(`"${name}" adicionado!`, 'success');
+    renderSavedStreams();
+
+    // Atualiza tab se estiver ativa
+    if (state.activeTab === '_streams') renderManualStreams();
+}
+
+function deleteStream(id) {
+    state.streams = state.streams.filter(s => s.id !== id);
+    localStorage.setItem('sl_streams', JSON.stringify(state.streams));
+    renderSavedStreams();
+    if (state.activeTab === '_streams') renderManualStreams();
+    showToast('Stream removido', 'info');
+}
+
+function renderSavedStreams() {
+    const list = document.getElementById('saved-streams-list');
+    if (!state.streams.length) { list.innerHTML = ''; return; }
+
+    list.innerHTML = `
+        <div style="padding:14px 22px 4px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim)">Guardados (${state.streams.length})</div>
+        ${state.streams.map(s => `
+            <div class="saved-stream-item" style="padding:9px 22px">
+                <span class="saved-stream-name" onclick="playStreamDirect('${s.id}')">${sanitize(s.name)}</span>
+                <button class="saved-stream-del" onclick="deleteStream('${s.id}')"><i class="fas fa-trash"></i></button>
+            </div>
+        `).join('')}
+    `;
+}
+
+function playStreamDirect(id) {
+    const s = state.streams.find(x => x.id === id);
+    if (!s) return;
+    toggleModal(false);
+    document.getElementById('player-title').textContent  = s.name;
+    document.getElementById('player-subtitle').textContent = 'Livestream';
+    document.getElementById('stream-sources').innerHTML = '';
+    showPlayer();
+    loadIframe(s.url);
+}
+
+/* ══ Modal ═════════════════════════════════════ */
+function toggleModal(show) {
+    const m = document.getElementById('config-modal');
+    if (show) {
+        m.style.display = 'flex';
+        renderSavedStreams();
+        setTimeout(() => document.getElementById('direct-stream-url')?.focus(), 100);
+    } else {
+        m.style.display = 'none';
     }
-})();
+}
+
+/* ══ Toast ═════════════════════════════════════ */
+function showToast(msg, type = 'info', ms = 3000) {
+    const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', info:'fa-info-circle' };
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<i class="fas ${icons[type]}"></i><span>${sanitize(msg)}</span>`;
+    c.appendChild(t);
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 350); }, ms);
+}
+
+// Shimmer keyframe (não pode ir no CSS externo porque é inline)
+const styleTag = document.createElement('style');
+styleTag.textContent = `@keyframes shimmer{to{background-position:-200% 0}}[style*="shimmer"]{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.09) 50%,rgba(255,255,255,.05) 75%);background-size:200% 100%}`;
+document.head.appendChild(styleTag);
