@@ -82,7 +82,15 @@ async function apiGet(params) {
 }
 
 /* ─── Arranque ────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    // Actualiza jogos e hero a cada 5 minutos
+    setInterval(() => {
+        // So actualiza se o player nao estiver aberto
+        const playerOpen = document.getElementById('video-player-container').style.display === 'flex';
+        if (!playerOpen) loadMatches(activeCat);
+    }, 5 * 60 * 1000);
+});
 
 function init() {
     document.getElementById('search-field').addEventListener('input', onSearch);
@@ -479,32 +487,33 @@ function showNoStream(detail) {
 
 /* ─── Topbar auto-hide ────────────────────────────────────── */
 let _topbarTimer = null;
+let _topbarBound = false;
+
+function showControls() {
+    const topbar  = document.querySelector('.player-topbar');
+    const sources = document.getElementById('stream-sources');
+    if (topbar)  topbar.classList.remove('hidden');
+    if (sources) sources.classList.remove('hidden');
+    clearTimeout(_topbarTimer);
+    _topbarTimer = setTimeout(hideControls, 3500);
+}
+
+function hideControls() {
+    const topbar  = document.querySelector('.player-topbar');
+    const sources = document.getElementById('stream-sources');
+    if (topbar)  topbar.classList.add('hidden');
+    if (sources) sources.classList.add('hidden');
+}
 
 function startTopbarAutoHide() {
     const container = document.getElementById('video-player-container');
-    const topbar    = container.querySelector('.player-topbar');
-    const sources   = document.getElementById('stream-sources');
-
-    // Mostra controles
-    function showControls() {
-        topbar.classList.remove('hidden');
-        sources.classList.remove('hidden');
-        clearTimeout(_topbarTimer);
-        _topbarTimer = setTimeout(hideControls, 3500);
+    // Só adiciona os listeners uma vez
+    if (!_topbarBound) {
+        container.addEventListener('mousemove',  showControls);
+        container.addEventListener('touchstart', showControls, { passive: true });
+        container.addEventListener('click',      showControls);
+        _topbarBound = true;
     }
-
-    // Esconde controles (liberta canto superior para fechar anuncios)
-    function hideControls() {
-        topbar.classList.add('hidden');
-        sources.classList.add('hidden');
-    }
-
-    // Eventos para voltar a mostrar
-    container.addEventListener('mousemove', showControls);
-    container.addEventListener('touchstart', showControls, { passive: true });
-    container.addEventListener('click', showControls);
-
-    // Inicia o timer
     showControls();
 }
 
