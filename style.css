@@ -309,9 +309,14 @@ button { cursor:pointer; font-family:inherit; }
 }
 .player-live-badge i { font-size:6px; animation:blink 1.2s infinite; }
 
-/* Iframe: ocupa o resto do espaço abaixo da topbar */
+/* Iframe: ocupa todo o espaco restante abaixo da topbar e dos botoes */
 #main-iframe {
-    flex:1; width:100%; border:none; display:block; min-height:0;
+    flex:1;
+    width:100%;
+    height:0;        /* flex:1 substitui o height */
+    min-height:0;
+    border:none;
+    display:block;
 }
 
 /* Botões de fonte: por baixo da topbar, não sobrepõe o iframe */
@@ -333,8 +338,12 @@ button { cursor:pointer; font-family:inherit; }
 .src-btn.active { background:var(--accent); border-color:var(--accent); }
 
 .player-spinner {
-    position:absolute; inset:0; background:rgba(0,0,0,.6);
+    position:fixed;
+    top:56px; /* altura da topbar */
+    left:0; right:0; bottom:0;
+    background:rgba(0,0,0,.7);
     display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    z-index:10;
 }
 .spin-ring { width:44px; height:44px; border:3px solid rgba(255,255,255,.1); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
 .player-spinner span { font-size:.78rem; color:rgba(255,255,255,.5); }
