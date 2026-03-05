@@ -275,58 +275,62 @@ button { cursor:pointer; font-family:inherit; }
 .card-play-overlay i { font-size:2.2rem; color:#fff; filter:drop-shadow(0 2px 8px rgba(0,0,0,.7)); }
 
 /* ── Player ──────────────────────────────────── */
+/* ── Player: topbar fixa + iframe abaixo ── */
 #video-player-container {
     position:fixed; inset:0; background:#000; z-index:99999;
     display:none; flex-direction:column;
 }
+
+/* Topbar: altura fixa, sempre visível */
 .player-topbar {
-    position:absolute; top:0; left:0; right:0; z-index:10;
-    padding:16px 20px; display:flex; align-items:center; gap:14px;
-    background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);
-    transition: opacity .4s ease, transform .4s ease;
-}
-.player-topbar.hidden {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-10px);
-}
-.stream-sources.hidden {
-    opacity: 0;
-    pointer-events: none;
+    flex-shrink:0;
+    height:56px;
+    padding:0 16px;
+    display:flex; align-items:center; gap:12px;
+    background:#111;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    z-index:10;
 }
 .btn-back {
-    background:rgba(0,0,0,.6); color:#fff; border:1px solid rgba(255,255,255,.15);
-    padding:8px 16px; border-radius:50px; font-size:.82rem; font-weight:600;
+    background:rgba(255,255,255,.08); color:#fff; border:none;
+    padding:7px 14px; border-radius:50px; font-size:.82rem; font-weight:600;
     display:flex; align-items:center; gap:7px; flex-shrink:0;
-    backdrop-filter:blur(8px); transition:all .2s;
+    cursor:pointer; transition:background .2s;
 }
-.btn-back:hover { background:rgba(255,255,255,.15); transform:translateX(-3px); }
+.btn-back:hover { background:rgba(255,255,255,.18); }
 .player-match-info { flex:1; overflow:hidden; }
-.player-title { font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:.05em; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.player-subtitle { font-size:.72rem; color:rgba(255,255,255,.5); display:block; }
+.player-title { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:.05em; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.player-subtitle { font-size:.7rem; color:rgba(255,255,255,.45); display:block; }
 .player-live-badge {
     flex-shrink:0; background:rgba(0,230,118,.15); border:1px solid rgba(0,230,118,.4);
-    color:var(--live); border-radius:50px; padding:5px 12px;
-    font-size:.65rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--live); border-radius:50px; padding:4px 10px;
+    font-size:.62rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
     display:flex; align-items:center; gap:5px;
 }
 .player-live-badge i { font-size:6px; animation:blink 1.2s infinite; }
 
-/* Stream source switcher */
-.stream-sources {
-    position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
-    z-index:10; display:flex; gap:8px;
-    transition: opacity .4s ease;
+/* Iframe: ocupa o resto do espaço abaixo da topbar */
+#main-iframe {
+    flex:1; width:100%; border:none; display:block; min-height:0;
 }
+
+/* Botões de fonte: por baixo da topbar, não sobrepõe o iframe */
+.stream-sources {
+    flex-shrink:0;
+    display:flex; gap:8px; flex-wrap:wrap;
+    padding:8px 16px;
+    background:#0a0a0a;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    min-height:0;
+}
+.stream-sources:empty { display:none; }
 .src-btn {
-    background:rgba(0,0,0,.75); color:#fff; border:1px solid rgba(255,255,255,.2);
-    border-radius:50px; padding:7px 16px; font-size:.75rem; font-weight:600;
-    backdrop-filter:blur(8px); transition:all .2s; cursor:pointer;
+    background:rgba(255,255,255,.07); color:#fff; border:1px solid rgba(255,255,255,.15);
+    border-radius:50px; padding:5px 14px; font-size:.75rem; font-weight:600;
+    transition:all .2s; cursor:pointer;
 }
 .src-btn:hover  { background:rgba(255,255,255,.15); }
 .src-btn.active { background:var(--accent); border-color:var(--accent); }
-
-#main-iframe { width:100%; height:100%; border:none; display:block; }
 
 .player-spinner {
     position:absolute; inset:0; background:rgba(0,0,0,.6);
