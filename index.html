@@ -48,96 +48,97 @@
 
 <!-- Header -->
 <header id="main-header">
-    <div class="header-left">
-        <div class="brand-wrap">
-            <span class="brand-logo">STREAM<em>LINE</em></span>
-            <span class="brand-tag">SPORTS</span>
-        </div>
-        <nav class="sport-tabs" id="sport-tabs" role="tablist">
-            <div class="tabs-loading">
-                <div class="tab-ghost"></div>
-                <div class="tab-ghost"></div>
-                <div class="tab-ghost"></div>
-            </div>
-        </nav>
-    </div>
-    <div class="header-right">
-        <button class="btn-icon" id="btn-favs" onclick="toggleFavsPanel()" title="Favoritos">
-            <i class="fas fa-heart"></i>
+    <button class="hdr-icon" onclick="toggleFavsPanel()"><i class="fas fa-bars"></i></button>
+    <span class="hdr-title">STREAM<em>LINE</em></span>
+    <div class="hdr-right">
+        <button class="hdr-icon" onclick="toggleFavsPanel()" title="Favoritos">
+            <i class="fas fa-star"></i>
         </button>
-        <div class="search-box" id="search-box">
-            <button class="search-toggle" onclick="toggleSearch()">
-                <i class="fas fa-search"></i>
-            </button>
-            <input type="text" id="search-field" placeholder="Equipa, jogo...">
-            <button class="search-clear" id="search-clear" onclick="clearSearch()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <button class="btn-icon" onclick="refreshData()" title="Atualizar">
-            <i class="fas fa-sync-alt" id="refresh-icon"></i>
+        <button class="hdr-icon" onclick="refreshData()" title="Atualizar">
+            <i class="fas fa-redo" id="refresh-icon"></i>
+        </button>
+        <button class="hdr-icon" onclick="toggleSearch()" title="Pesquisar">
+            <i class="fas fa-search"></i>
         </button>
     </div>
 </header>
 
+<!-- Search bar (hidden by default) -->
+<div id="search-bar" class="search-bar">
+    <i class="fas fa-search"></i>
+    <input type="text" id="search-field" placeholder="Pesquisar equipa ou jogo...">
+    <button onclick="clearSearch()"><i class="fas fa-times"></i></button>
+</div>
+
 <!-- Favoritos panel -->
 <div id="favs-panel" class="favs-panel">
     <div class="favs-header">
-        <span><i class="fas fa-heart"></i> Favoritos</span>
+        <span><i class="fas fa-star"></i> Favoritos</span>
         <button onclick="toggleFavsPanel()"><i class="fas fa-times"></i></button>
     </div>
     <div id="favs-list" class="favs-list"></div>
 </div>
 <div id="favs-backdrop" class="favs-backdrop" onclick="toggleFavsPanel()"></div>
 
-<!-- Conteudo principal -->
-<main class="content" id="main-scroll">
+<!-- Sports category bottom sheet -->
+<div id="sports-sheet" class="sports-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Selecionar Desporto</div>
+    <div id="sheet-cats" class="sheet-cats"></div>
+</div>
+<div id="sheet-backdrop" class="favs-backdrop" onclick="closeSportsSheet()"></div>
 
-    <!-- Hero -->
-    <section id="hero-featured" style="display:none">
-        <div class="hero-bg" id="hero-bg"></div>
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <div class="hero-badges">
-                <span id="hero-live-badge" class="badge-live" style="display:none">
-                    <i class="fas fa-circle"></i> AO VIVO
-                </span>
-                <span id="hero-league" class="badge-league"></span>
-            </div>
-            <div id="hero-teams" class="hero-teams"></div>
-            <p id="hero-time" class="hero-time"></p>
-            <div class="hero-actions">
-                <button id="hero-play" class="btn-hero-play">
-                    <i class="fas fa-play"></i> Ver Agora
-                </button>
-                <button id="hero-fav" class="btn-hero-fav" onclick="toggleFavFromHero()">
-                    <i class="far fa-heart"></i>
-                </button>
-            </div>
-        </div>
-    </section>
+<!-- Main content -->
+<main id="main-wrap">
 
-    <!-- Live ticker -->
-    <div id="live-bar" class="live-bar" style="display:none">
-        <span class="live-bar-label"><i class="fas fa-circle"></i> AO VIVO</span>
-        <div class="live-bar-track" id="live-bar-track"></div>
-    </div>
+    <!-- Sport category icons -->
+    <div id="cat-icons" class="cat-icons"></div>
 
-    <!-- Jogos -->
-    <div id="main-content"></div>
-</main>
-
-<!-- Empty / erro -->
-<div id="empty-state" style="display:none">
-    <div class="empty-inner">
-        <div class="empty-icon"><i class="fas fa-calendar-times"></i></div>
-        <h2 id="empty-title">Sem jogos disponiveis</h2>
-        <p id="empty-desc">Nao ha jogos agendados neste momento.</p>
-        <button class="btn-primary" onclick="refreshData()">
-            <i class="fas fa-sync-alt"></i> Tentar novamente
+    <!-- Filter pills -->
+    <div class="filter-pills" id="filter-pills">
+        <button class="pill active" data-filter="all"     onclick="setFilter('all')">
+            <i class="fas fa-check"></i> Todos <span id="cnt-all"></span>
+        </button>
+        <button class="pill" data-filter="live"     onclick="setFilter('live')">
+            Ao Vivo <span id="cnt-live"></span>
+        </button>
+        <button class="pill" data-filter="upcoming" onclick="setFilter('upcoming')">
+            Em Breve <span id="cnt-upcoming"></span>
         </button>
     </div>
-</div>
+
+    <!-- Match list -->
+    <div id="main-content"></div>
+
+    <!-- Empty state -->
+    <div id="empty-state" style="display:none">
+        <div class="empty-inner">
+            <div class="empty-icon"><i class="fas fa-calendar-times"></i></div>
+            <h2 id="empty-title">Sem jogos</h2>
+            <p id="empty-desc">Nao ha jogos disponiveis neste momento.</p>
+            <button class="btn-primary" onclick="refreshData()">
+                <i class="fas fa-sync-alt"></i> Tentar novamente
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+    <button class="bnav-btn active" id="bnav-live" onclick="bottomNav('live')">
+        <i class="fas fa-broadcast-tower"></i>
+        <span>Ao Vivo</span>
+    </button>
+    <button class="bnav-btn" id="bnav-sports" onclick="bottomNav('sports')">
+        <i class="fas fa-futbol"></i>
+        <span>Desportos</span>
+    </button>
+    <button class="bnav-btn" id="bnav-all" onclick="bottomNav('all')">
+        <i class="fas fa-tv"></i>
+        <span>Todos</span>
+    </button>
+</nav>
 
 <div id="toast-container" aria-live="assertive"></div>
 <script src="app.js"></script>
