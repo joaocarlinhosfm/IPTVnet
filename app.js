@@ -251,6 +251,49 @@ function onTabClick(cat) {
     loadMatches(cat);
 }
 
+/* ─── Cache de streams ─────────────────────────────── */
+// Guarda resultado dos testes: { matchId -> true/false }
+const streamCache = {};
+
+// Testa se um jogo tem stream disponivel (com cache)
+async function hasStream(match) {
+    const key = match.id + '|' + (match.category || activeCat);
+    if (key in streamCache) return streamCache[key];
+    try {
+        const cat = (match.category || activeCat).trim();
+        const id  = match.id.trim();
+        const url = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
+        const res  = await fetch(url);
+        const json = JSON.parse(await res.text());
+        const sources = extractSources(json);
+        streamCache[key] = sources.length > 0;
+    } catch {
+        streamCache[key] = false;
+    }
+    return streamCache[key];
+}
+
+// Testa multiplos jogos em paralelo, com limite de concorrencia
+async function filterByStream(matches, onProgress) {
+    const CONCURRENCY = 5; // max pedidos em simultaneo
+    const results = new Array(matches.length).fill(false);
+    let idx = 0;
+
+    async function worker() {
+        while (idx < matches.length) {
+            const i = idx++;
+            results[i] = await hasStream(matches[i]);
+            if (onProgress) onProgress(i + 1, matches.length);
+        }
+    }
+
+    // Lanca N workers em paralelo
+    const workers = Array.from({ length: Math.min(CONCURRENCY, matches.length) }, worker);
+    await Promise.all(workers);
+
+    return matches.filter((_, i) => results[i]);
+}
+
 /* ─── Carregar jogos ───────────────────────────────── */
 async function loadMatches(cat) {
     activeCat = cat;
@@ -263,9 +306,11 @@ async function loadMatches(cat) {
     let matches;
     try {
         const data   = await apiGet({ data: 'matches', category: cat });
-        const cutoff = Date.now() - 3 * 60 * 60 * 1000;
+        const now    = Date.now();
+        const cutoff = now - 3 * 60 * 60 * 1000;   // jogos ao vivo (ate 3h atras)
+        const future = now + 1 * 60 * 60 * 1000;   // maximo 1h no futuro
         matches = Array.isArray(data)
-            ? data.filter(m => m && m.id && (!m.date || m.date >= cutoff))
+            ? data.filter(m => m && m.id && (!m.date || (m.date >= cutoff && m.date <= future)))
             : [];
     } catch (e) {
         clearSkeletons();
@@ -273,10 +318,42 @@ async function loadMatches(cat) {
         return;
     }
 
-    allMatches = matches;
+    if (!matches.length) {
+        allMatches = [];
+        clearSkeletons();
+        renderMatches([]);
+        return;
+    }
+
+    // Mostra progresso enquanto testa os streams
+    showStreamTestProgress(0, matches.length);
+
+    const verified = await filterByStream(matches, (done, total) => {
+        showStreamTestProgress(done, total);
+    });
+
+    allMatches = verified;
     clearSkeletons();
-    updateTabLiveCounts(matches);
-    renderMatches(matches);
+    updateTabLiveCounts(verified);
+    renderMatches(verified);
+}
+
+function showStreamTestProgress(done, total) {
+    const pct = Math.round((done / total) * 100);
+    document.getElementById('main-content').innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    height:40vh;gap:18px;padding:20px;">
+            <div style="font-size:.8rem;color:var(--text-dim);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">
+                A verificar streams disponíveis...
+            </div>
+            <div style="width:220px;height:3px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;">
+                <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:3px;transition:width .3s ease;"></div>
+            </div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.3);">
+                ${done} / ${total}
+            </div>
+        </div>
+    `;
 }
 
 /* ─── Render jogos ─────────────────────────────────── */
@@ -771,4 +848,3 @@ window.refreshData        = () => {
         : loadMatches(activeCat);
     setTimeout(() => icon.classList.remove('spinning'), 2000);
 };
-a
