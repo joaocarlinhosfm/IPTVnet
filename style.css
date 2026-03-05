@@ -276,7 +276,7 @@ button { cursor:pointer; font-family:inherit; }
 
 /* ── Player ──────────────────────────────────── */
 #video-player-container {
-    position:fixed; inset:0; background:#000; z-index:9999;
+    position:fixed; inset:0; background:#000; z-index:99999;
     display:none; flex-direction:column;
 }
 .player-topbar {
