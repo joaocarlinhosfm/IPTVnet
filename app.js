@@ -276,7 +276,8 @@ function setupHero(match) {
         `${esc(home)}<span class="hero-vs">VS</span>${esc(away)}`;
     document.getElementById('hero-league').textContent = '';
     document.getElementById('hero-time').textContent =
-        live ? ' Ao vivo agora' : fmtDate(match.date);
+        live ? 'A decorrer agora' : fmtDate(match.date);
+    document.getElementById('hero-live-badge').style.display = live ? '' : 'none';
 
     const bg = document.getElementById('hero-bg');
     const img = match.poster || BG_IMAGES[activeCat] || BG_IMAGES.default;
