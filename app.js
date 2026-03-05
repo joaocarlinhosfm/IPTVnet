@@ -591,18 +591,32 @@ function buildSourceButtons(sources) {
 
 function loadStream(source) {
     const iframe = document.getElementById('main-iframe');
+    const url    = typeof source === 'string' ? source : source.url;
+
+    // Limpa qualquer mensagem de erro anterior, garante que iframe esta visivel
+    document.querySelectorAll('.no-stream-msg').forEach(e => e.remove());
+    iframe.style.display = '';
     showSpinner();
-    iframe.src = 'about:blank';
+
+    // Usa apenas setTimeout — evita o disparo prematuro do onload do about:blank
+    iframe.onload  = null;
+    iframe.onerror = null;
+    iframe.src     = 'about:blank';
+
     setTimeout(() => {
-        iframe.src    = typeof source === 'string' ? source : source.url;
-        iframe.onload = () => setTimeout(hideSpinner, 500);
-        setTimeout(hideSpinner, 15000);
+        // Define handlers APOS limpar o src, so para o URL real
+        iframe.onload  = () => setTimeout(hideSpinner, 500);
+        iframe.onerror = () => showNoStream('Nao foi possivel carregar a stream.');
+        iframe.src     = url;
+        // Timeout de seguranca: 20s
+        setTimeout(() => hideSpinner(), 20000);
     }, 300);
 }
 
 function showNoStream(detail) {
     hideSpinner();
     document.querySelectorAll('.no-stream-msg').forEach(e => e.remove());
+    // Esconde o iframe para nao mostrar tela cinzenta do browser
     document.getElementById('main-iframe').style.display = 'none';
     const msg = document.createElement('div');
     msg.className = 'no-stream-msg';
@@ -612,6 +626,7 @@ function showNoStream(detail) {
         <small>${esc(detail || '')}</small>
         <button onclick="closePlayer()"><i class="fas fa-arrow-left"></i> Voltar</button>
     `;
+    // Insere no fluxo flex, apos os botoes de fonte
     document.getElementById('stream-sources').insertAdjacentElement('afterend', msg);
 }
 
