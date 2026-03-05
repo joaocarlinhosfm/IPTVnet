@@ -283,6 +283,16 @@ button { cursor:pointer; font-family:inherit; }
     position:absolute; top:0; left:0; right:0; z-index:10;
     padding:16px 20px; display:flex; align-items:center; gap:14px;
     background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);
+    transition: opacity .4s ease, transform .4s ease;
+}
+.player-topbar.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-10px);
+}
+.stream-sources.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 .btn-back {
     background:rgba(0,0,0,.6); color:#fff; border:1px solid rgba(255,255,255,.15);
@@ -306,6 +316,7 @@ button { cursor:pointer; font-family:inherit; }
 .stream-sources {
     position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
     z-index:10; display:flex; gap:8px;
+    transition: opacity .4s ease;
 }
 .src-btn {
     background:rgba(0,0,0,.75); color:#fff; border:1px solid rgba(255,255,255,.2);

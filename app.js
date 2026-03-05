@@ -341,6 +341,7 @@ async function openMatch(match) {
 
         buildSourceButtons(sources);
         loadStream(sources[0]);
+        startTopbarAutoHide();
 
     } catch (e) {
         console.error('[SportSRC] openMatch erro:', e);
@@ -476,13 +477,48 @@ function showNoStream(detail) {
 }
 
 
+/* ─── Topbar auto-hide ────────────────────────────────────── */
+let _topbarTimer = null;
+
+function startTopbarAutoHide() {
+    const container = document.getElementById('video-player-container');
+    const topbar    = container.querySelector('.player-topbar');
+    const sources   = document.getElementById('stream-sources');
+
+    // Mostra controles
+    function showControls() {
+        topbar.classList.remove('hidden');
+        sources.classList.remove('hidden');
+        clearTimeout(_topbarTimer);
+        _topbarTimer = setTimeout(hideControls, 3500);
+    }
+
+    // Esconde controles (liberta canto superior para fechar anuncios)
+    function hideControls() {
+        topbar.classList.add('hidden');
+        sources.classList.add('hidden');
+    }
+
+    // Eventos para voltar a mostrar
+    container.addEventListener('mousemove', showControls);
+    container.addEventListener('touchstart', showControls, { passive: true });
+    container.addEventListener('click', showControls);
+
+    // Inicia o timer
+    showControls();
+}
+
 function closePlayer() {
     document.getElementById('main-iframe').src = '';
     document.getElementById('video-player-container').style.display = 'none';
     document.body.style.overflow = '';
-    // Restaura elementos escondidos
     document.getElementById('main-header').style.display = '';
-    // A live bar so volta se houver jogos ao vivo (renderMatches trata disso)
+    // Garante que topbar fica visivel para proxima abertura
+    const topbar  = document.querySelector('.player-topbar');
+    const sources = document.getElementById('stream-sources');
+    if (topbar)  topbar.classList.remove('hidden');
+    if (sources) sources.classList.remove('hidden');
+    clearTimeout(_topbarTimer);
     hideSpinner();
 }
 
