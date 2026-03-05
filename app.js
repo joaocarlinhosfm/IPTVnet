@@ -353,51 +353,67 @@ async function openMatch(match) {
 // { success, data: { sources: [ { streamNo, hd, language, embedUrl, source, viewers } ] } }
 
 function extractSources(json) {
-    if (!json) return [];
+    console.log('[extractSources] input type:', typeof json, Array.isArray(json) ? 'array' : '');
 
-    // Desce para data se existir
-    const root = (json.data !== undefined) ? json.data : json;
-    if (!root) return [];
+    if (!json) { console.log('[extractSources] null input'); return []; }
 
-    // Formato real: root.sources[]  com campo embedUrl
-    if (Array.isArray(root.sources) && root.sources.length) {
-        return root.sources
-            .filter(s => s && s.embedUrl)
-            .map((s, i) => ({
-                name: buildSourceName(s, i),
-                url: s.embedUrl
-            }));
+    // Percorre todos os níveis possíveis onde podem estar as sources
+    const levels = [];
+    levels.push(json);                                          // nivel raiz
+    if (json && json.data)           levels.push(json.data);   // json.data
+    if (json && json.data && json.data.sources) levels.push(json.data.sources); // json.data.sources
+
+    for (const level of levels) {
+        if (!level) continue;
+        console.log('[extractSources] a verificar nivel:', JSON.stringify(level).slice(0, 200));
+
+        // É um array com embedUrl -> sao as sources directamente
+        if (Array.isArray(level)) {
+            const found = level.filter(s => s && s.embedUrl);
+            if (found.length) {
+                console.log('[extractSources] encontrou array com embedUrl:', found.length);
+                return found.map((s, i) => ({ name: buildSourceName(s, i), url: s.embedUrl }));
+            }
+        }
+
+        // É um objecto com .sources[]
+        if (level && typeof level === 'object' && Array.isArray(level.sources)) {
+            const found = level.sources.filter(s => s && s.embedUrl);
+            if (found.length) {
+                console.log('[extractSources] encontrou .sources[] com embedUrl:', found.length);
+                return found.map((s, i) => ({ name: buildSourceName(s, i), url: s.embedUrl }));
+            }
+        }
+
+        // É um objecto com .streams[]
+        if (level && typeof level === 'object' && Array.isArray(level.streams)) {
+            const found = level.streams.filter(s => s && (s.embedUrl || s.url || s.embed));
+            if (found.length) {
+                console.log('[extractSources] encontrou .streams[]:', found.length);
+                return found.map((s, i) => ({
+                    name: buildSourceName(s, i),
+                    url: s.embedUrl || s.url || s.embed
+                }));
+            }
+        }
+
+        // URL directa no objecto
+        if (level && typeof level === 'object' && !Array.isArray(level)) {
+            const u = level.embedUrl || level.embed || level.url || level.iframe || level.src || level.stream;
+            if (u && typeof u === 'string' && u.startsWith('http')) {
+                console.log('[extractSources] encontrou URL directa:', u.slice(0, 80));
+                return [{ name: 'Stream 1', url: u }];
+            }
+        }
     }
 
-    // Fallbacks para outros formatos possíveis
-    if (Array.isArray(root.streams) && root.streams.length) {
-        return root.streams
-            .filter(s => s && (s.embedUrl || s.url || s.embed || s.src))
-            .map((s, i) => ({
-                name: buildSourceName(s, i),
-                url: s.embedUrl || s.url || s.embed || s.src
-            }));
-    }
-
-    // Array directo na raiz
-    if (Array.isArray(root) && root.length && root[0]?.embedUrl) {
-        return root
-            .filter(s => s && s.embedUrl)
-            .map((s, i) => ({ name: buildSourceName(s, i), url: s.embedUrl }));
-    }
-
-    // URL única directa
-    const single = root.embedUrl || root.embed || root.url || root.iframe || root.src;
-    if (single && typeof single === 'string' && single.startsWith('http')) {
-        return [{ name: 'Stream 1', url: single }];
-    }
-
+    console.log('[extractSources] nenhuma source encontrada. json completo:', JSON.stringify(json));
     return [];
 }
 
 function buildSourceName(s, i) {
-    const num = s.streamNo || (i + 1);
-    const hd  = s.hd ? ' HD' : '';
+    const num  = s.streamNo || (i + 1);
+    const hd   = s.hd ? ' HD' : '';
     const lang = s.language ? ` . ${s.language.toUpperCase()}` : '';
     return `Fonte ${num}${hd}${lang}`;
 }
