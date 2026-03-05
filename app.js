@@ -302,6 +302,9 @@ async function openMatch(match) {
 
     document.getElementById('video-player-container').style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    // Esconde elementos que ficam por cima do iframe e bloqueiam o X dos anuncios
+    document.getElementById('live-bar').style.display = 'none';
+    document.getElementById('main-nav').style.display = 'none';
     showSpinner();
 
     try {
@@ -461,6 +464,9 @@ function closePlayer() {
     document.getElementById('main-iframe').src = '';
     document.getElementById('video-player-container').style.display = 'none';
     document.body.style.overflow = '';
+    // Restaura elementos escondidos
+    document.getElementById('main-nav').style.display = '';
+    // A live bar so volta se houver jogos ao vivo (renderMatches trata disso)
     hideSpinner();
 }
 
