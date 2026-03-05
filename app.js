@@ -158,7 +158,11 @@ async function loadMatches(cat) {
     try {
         const data = await apiGet({ data: 'matches', category: cat });
         // data = array de jogos
-        matches = Array.isArray(data) ? data.filter(m => m && m.id) : [];
+        // Filtra jogos terminados ha mais de 3 horas
+        const cutoff = Date.now() - 3 * 60 * 60 * 1000;
+        matches = Array.isArray(data)
+            ? data.filter(m => m && m.id && (!m.date || m.date >= cutoff))
+            : [];
     } catch (e) {
         console.error('loadMatches erro:', e);
         clearSkeletons();
@@ -185,9 +189,14 @@ function renderMatches(matches) {
         return;
     }
 
-    // Hero
-    const hero = matches.find(m => m.popular) || matches[0];
-    setupHero(hero);
+    // Hero: ao vivo > popular futuro > proximo futuro > nunca mostrar passados
+    const now = Date.now();
+    const live     = matches.filter(m => isLive(m.date));
+    const upcoming = matches.filter(m => m.date > now).sort((a,b) => a.date - b.date);
+    const hero = live.find(m => m.popular) || live[0]
+              || upcoming.find(m => m.popular) || upcoming[0]
+              || matches[0]; // ultimo recurso
+    if (hero) setupHero(hero);
 
     // Live ticker
     const liveMatches = matches.filter(m => isLive(m.date));
