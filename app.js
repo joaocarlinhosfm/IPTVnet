@@ -146,19 +146,20 @@ async function apiGet(params) {
 }
 
 /* ─── Cache & stream filter ────────────────────────── */
-const streamCache = {};
+// Guarda as sources completas — evita segundo fetch no openMatch
+const sourcesCache = {};
 
-async function hasStream(match) {
-    const key = match.id + '|' + (match.category || activeCat);
-    if (key in streamCache) return streamCache[key];
+async function fetchSources(match) {
+    const cat = (match.category || activeCat).trim();
+    const id  = match.id.trim();
+    const key = id + '|' + cat;
+    if (key in sourcesCache) return sourcesCache[key];
     try {
-        const cat = (match.category || activeCat).trim();
-        const id  = match.id.trim();
-        const url = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
+        const url  = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
         const json = JSON.parse(await (await fetch(url)).text());
-        streamCache[key] = extractSources(json).length > 0;
-    } catch { streamCache[key] = false; }
-    return streamCache[key];
+        sourcesCache[key] = extractSources(json);
+    } catch { sourcesCache[key] = []; }
+    return sourcesCache[key];
 }
 
 async function filterByStream(matches, onProgress) {
@@ -168,7 +169,10 @@ async function filterByStream(matches, onProgress) {
     async function worker() {
         while (idx < matches.length) {
             const i = idx++;
-            results[i] = await hasStream(matches[i]);
+            // Carimba a categoria para que openMatch use sempre a mesma chave
+            if (!matches[i].category) matches[i].category = activeCat;
+            const sources = await fetchSources(matches[i]);
+            results[i] = sources.length > 0;
             if (onProgress) onProgress(i + 1, matches.length);
         }
     }
@@ -517,11 +521,8 @@ async function openMatch(match) {
     showSpinner();
 
     try {
-        const id  = match.id.trim();
-        const cat = (match.category || activeCat).trim();
-        const url = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
-        const json = JSON.parse(await (await fetch(url)).text());
-        const sources = extractSources(json);
+        // Reutiliza sources do cache (ja testadas em filterByStream) — sem segundo fetch
+        const sources = await fetchSources(match);
 
         if (!sources.length) {
             hideSpinner();
