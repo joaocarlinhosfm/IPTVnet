@@ -560,10 +560,18 @@ async function openMatch(match) {
     const away = teamName(match.teams?.away);
     const live = isLive(match.date);
 
+    // Mostra o player PRIMEIRO (container tem de estar visivel antes de qualquer
+    // navegacao no iframe — Android Chrome ignora iframes em display:none)
+    document.getElementById('video-player-container').style.display = 'flex';
+    document.getElementById('main-header').style.display = 'none';
+    document.body.style.overflow = 'hidden';
+
+    // Limpa estado anterior
     document.querySelectorAll('.no-stream-msg').forEach(e => e.remove());
-    document.getElementById('main-iframe').src           = 'about:blank';
+    document.getElementById('stream-sources').innerHTML = '';
     document.getElementById('main-iframe').style.display = '';
-    document.getElementById('stream-sources').innerHTML  = '';
+
+    // Preenche info do jogo
     document.getElementById('player-title').textContent    = home + ' vs ' + away;
     document.getElementById('player-subtitle').textContent = (match.category || activeCat).toUpperCase();
     document.getElementById('player-live-badge').style.display = live ? 'flex' : 'none';
@@ -573,24 +581,16 @@ async function openMatch(match) {
     favBtn.classList.toggle('active', isFav(match.id));
     favBtn.querySelector('i').className = isFav(match.id) ? 'fas fa-heart' : 'far fa-heart';
 
-    document.getElementById('video-player-container').style.display = 'flex';
-    document.getElementById('main-header').style.display = 'none';
-    document.body.style.overflow = 'hidden';
     showSpinner();
 
     try {
-        // Tenta cache primeiro; se vazio (fetch falhou durante filterByStream) tenta de novo
+        // Tenta cache; se vazio por falha de rede, apaga e tenta de novo
         let sources = await fetchSources(match);
-
         if (!sources.length) {
-            // Cache pode estar vazio por falha de rede durante filterByStream
-            // Remove entrada falhada e tenta fetch directo
-            const cat = (match.category || activeCat).trim();
-            const key = match.id.trim() + '|' + cat;
+            const key = match.id.trim() + '|' + (match.category || activeCat).trim();
             delete sourcesCache[key];
             sources = await fetchSources(match);
         }
-
         if (!sources.length) {
             hideSpinner();
             showNoStream('Sem stream disponivel. O jogo pode ainda nao ter comecado.');
@@ -661,24 +661,24 @@ function loadStream(source) {
     const iframe = document.getElementById('main-iframe');
     const url    = typeof source === 'string' ? source : source.url;
 
-    // Limpa qualquer mensagem de erro anterior, garante que iframe esta visivel
+    // Limpa mensagens anteriores, garante iframe visivel
     document.querySelectorAll('.no-stream-msg').forEach(e => e.remove());
     iframe.style.display = '';
     showSpinner();
 
-    // Usa apenas setTimeout — evita o disparo prematuro do onload do about:blank
+    // Remove handlers antigos antes de definir novos
     iframe.onload  = null;
     iframe.onerror = null;
-    iframe.src     = 'about:blank';
 
-    setTimeout(() => {
-        // Define handlers APOS limpar o src, so para o URL real
+    // Carrega directamente — sem about:blank intermedio (causa problemas em Android)
+    // Usa requestAnimationFrame para garantir que o DOM esta pintado antes de navegar
+    requestAnimationFrame(() => {
         iframe.onload  = () => setTimeout(hideSpinner, 500);
         iframe.onerror = () => showNoStream('Nao foi possivel carregar a stream.');
         iframe.src     = url;
-        // Timeout de seguranca: 20s
-        setTimeout(() => hideSpinner(), 20000);
-    }, 300);
+        // Timeout de seguranca: 25s
+        setTimeout(hideSpinner, 25000);
+    });
 }
 
 function showNoStream(detail) {
