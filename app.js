@@ -213,6 +213,12 @@ async function loadCategories() {
             { id:'hockey',     name:'Hockey'      },
         ];
     }
+    // Football sempre primeiro
+    cats.sort((a, b) => {
+        if (a.id === 'football') return -1;
+        if (b.id === 'football') return  1;
+        return 0;
+    });
     allCats = cats;
     renderCatIcons(cats);
     renderSheetCats(cats);
