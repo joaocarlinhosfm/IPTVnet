@@ -151,10 +151,18 @@ async function fetchSources(match) {
     if (key in sourcesCache) return sourcesCache[key];
     try {
         const url  = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
-        const json = JSON.parse(await (await fetch(url)).text());
-        sourcesCache[key] = extractSources(json);
-    } catch { sourcesCache[key] = []; }
-    return sourcesCache[key];
+        const res  = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const json = JSON.parse(await res.text());
+        const sources = extractSources(json);
+        // So guarda no cache se encontrou sources — erros/vazios nao ficam cached
+        if (sources.length > 0) sourcesCache[key] = sources;
+        else sourcesCache[key] = [];
+        return sourcesCache[key];
+    } catch {
+        // Nao guarda falhas de rede no cache — permite retry automatico
+        return [];
+    }
 }
 
 async function filterByStream(matches, onProgress) {
@@ -565,8 +573,17 @@ async function openMatch(match) {
     showSpinner();
 
     try {
-        // Reutiliza sources do cache (ja testadas em filterByStream) — sem segundo fetch
-        const sources = await fetchSources(match);
+        // Tenta cache primeiro; se vazio (fetch falhou durante filterByStream) tenta de novo
+        let sources = await fetchSources(match);
+
+        if (!sources.length) {
+            // Cache pode estar vazio por falha de rede durante filterByStream
+            // Remove entrada falhada e tenta fetch directo
+            const cat = (match.category || activeCat).trim();
+            const key = match.id.trim() + '|' + cat;
+            delete sourcesCache[key];
+            sources = await fetchSources(match);
+        }
 
         if (!sources.length) {
             hideSpinner();
