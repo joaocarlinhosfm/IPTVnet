@@ -14,14 +14,6 @@ const SPORT_ICONS = {
     afl:'fa-football-ball', billiards:'fa-circle', other:'fa-trophy',
 };
 
-const BG_IMAGES = {
-    football:'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200',
-    basketball:'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1200',
-    tennis:'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?q=80&w=1200',
-    fight:'https://images.unsplash.com/photo-1555597673-b21d5c935865?q=80&w=1200',
-    default:'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200',
-};
-
 // Estado global
 let activeCat      = 'football';
 let allMatches     = [];     // todos os jogos verificados
@@ -30,7 +22,6 @@ let allCats        = [];     // lista de categorias
 let activeFilter   = 'all'; // all | live | upcoming
 let activeNavMode  = 'all'; // all | live (bottom nav)
 let countdownInt   = null;
-let heroMatch      = null;
 
 /* ─── Utilitarios ──────────────────────────────────── */
 function esc(s) {
@@ -112,10 +103,14 @@ function renderFavsPanel() {
     favs.forEach(f => {
         const item = document.createElement('div');
         item.className = 'fav-item';
+        const inAllMatches = allMatches.find(m => m.id === f.id);
+        const favLive = inAllMatches && isLive(inAllMatches.date);
         item.innerHTML = `
             <div class="fav-item-info">
                 <div class="fav-item-name">${esc(f.title)}</div>
-                <div class="fav-item-cat">${esc(f.category)}</div>
+                <div class="fav-item-cat">
+                    ${favLive ? '<span style="color:var(--live);font-weight:700;font-size:.65rem">● AO VIVO</span>' : esc(f.category) + (f.date ? ' · ' + fmtTime(f.date) : '')}
+                </div>
             </div>
             <button class="fav-item-del" title="Remover"><i class="fas fa-times"></i></button>
         `;
@@ -278,6 +273,10 @@ async function loadMatches(cat) {
     activeCat = cat;
     clearInterval(countdownInt);
     document.getElementById('empty-state').style.display = 'none';
+    // Limpa cache de sources desta categoria para sempre buscar dados frescos
+    Object.keys(sourcesCache).forEach(k => { if (k.endsWith('|' + cat)) delete sourcesCache[k]; });
+    // Scroll para o topo ao mudar de categoria
+    document.getElementById('main-wrap').scrollTop = 0;
     showProgress(0, 1);
 
     let matches;
@@ -347,6 +346,23 @@ function updateFilterCounts(matches) {
     el('cnt-upcoming').textContent = upcomingC ? '(' + upcomingC + ')'  : '';
 }
 
+/* ─── Ordenacao ────────────────────────────────────── */
+function sortMatches(matches) {
+    // 1. Ao vivo primeiro
+    // 2. Dentro de ao vivo: por liga alfabetica
+    // 3. Nao ao vivo: por hora crescente
+    // 4. Dentro da mesma hora: por liga alfabetica
+    return [...matches].sort((a, b) => {
+        const aLive = isLive(a.date) ? 1 : 0;
+        const bLive = isLive(b.date) ? 1 : 0;
+        if (aLive !== bLive) return bLive - aLive; // live primeiro
+        const aLeague = (a.competition || a.league || a.category || '').toLowerCase();
+        const bLeague = (b.competition || b.league || b.category || '').toLowerCase();
+        if (aLeague !== bLeague) return aLeague.localeCompare(bLeague);
+        return (a.date || 0) - (b.date || 0); // hora crescente
+    });
+}
+
 /* ─── Render jogos ─────────────────────────────────── */
 function renderMatches(matches) {
     const content = document.getElementById('main-content');
@@ -364,15 +380,34 @@ function renderMatches(matches) {
         return;
     }
 
-    matches.forEach((m, i) => {
+    const sorted = sortMatches(matches);
+
+    // Agrupa por liga para mostrar separadores visuais
+    let lastLeague = null;
+    sorted.forEach((m, i) => {
+        const league = m.competition || m.league || (m.category || activeCat).toUpperCase();
+        // Separador de liga quando muda
+        if (league !== lastLeague) {
+            lastLeague = league;
+            const sep = document.createElement('div');
+            sep.className = 'league-separator';
+            const live = isLive(m.date);
+            sep.innerHTML = `
+                <div class="league-sep-icon"><i class="fas ${SPORT_ICONS[m.category||activeCat]||'fa-trophy'}"></i></div>
+                <span class="league-sep-name">${esc(league)}</span>
+                ${live ? '<span class="league-sep-live"><i class="fas fa-circle"></i> AO VIVO</span>' : ''}
+            `;
+            content.appendChild(sep);
+        }
         const card = buildCard(m);
-        card.style.animationDelay = (i * 0.04) + 's';
-        card.style.animation = 'cardIn .35s ease both';
+        card.style.animationDelay = (i * 0.03) + 's';
+        card.style.animation = 'cardIn .3s ease both';
+        // Esconde a liga bar do card (ja mostrada no separador)
         content.appendChild(card);
     });
 
     // Countdown para jogos em breve
-    const soon = matches.filter(m => !isLive(m.date) && m.date > Date.now() && (m.date - Date.now()) < 3600000);
+    const soon = sorted.filter(m => !isLive(m.date) && m.date > Date.now() && (m.date - Date.now()) < 3600000);
     if (soon.length) startCountdowns(soon);
 }
 
@@ -487,13 +522,22 @@ window.closeSportsSheet = function() {
 function onSearch() {
     const q = document.getElementById('search-field').value.trim().toLowerCase();
     if (!q) { applyFilter(); return; }
+    // Pesquisa apenas nos jogos da categoria activa ja carregados
     const filtered = allMatches.filter(m => {
         const h = (m.teams?.home?.name || '').toLowerCase();
         const a = (m.teams?.away?.name || '').toLowerCase();
         const t = (m.title || '').toLowerCase();
         return h.includes(q) || a.includes(q) || t.includes(q);
     });
-    renderMatches(filtered);
+    if (!filtered.length) {
+        document.getElementById('main-content').innerHTML = '';
+        document.getElementById('empty-title').textContent = 'Sem resultados para "' + q + '"';
+        document.getElementById('empty-desc').textContent  = 'Tenta pesquisar outro nome.';
+        document.getElementById('empty-state').style.display = 'flex';
+    } else {
+        document.getElementById('empty-state').style.display = 'none';
+        renderMatches(filtered);
+    }
 }
 
 /* ─── Abrir jogo ───────────────────────────────────── */
@@ -711,10 +755,9 @@ window.setFilter = setFilter;
 window.refreshData = function() {
     const icon = document.getElementById('refresh-icon');
     icon.classList.add('spinning');
-    loadMatches(activeCat).finally
-        ? loadMatches(activeCat).finally(() => icon.classList.remove('spinning'))
-        : loadMatches(activeCat);
-    setTimeout(() => icon.classList.remove('spinning'), 2000);
+    // Limpa cache de sources para forcar re-verificacao
+    Object.keys(sourcesCache).forEach(k => delete sourcesCache[k]);
+    loadMatches(activeCat).finally(() => icon.classList.remove('spinning'));
 };
 window.toggleSearch = function() {
     const bar   = document.getElementById('search-bar');
