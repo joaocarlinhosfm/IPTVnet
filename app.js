@@ -140,48 +140,8 @@ async function apiGet(params) {
     return json;
 }
 
-/* ─── Cache & stream filter ────────────────────────── */
-// Guarda as sources completas — evita segundo fetch no openMatch
-const sourcesCache = {};
-
-async function fetchSources(match) {
-    const cat = (match.category || activeCat).trim();
-    const id  = match.id.trim();
-    const key = id + '|' + cat;
-    if (key in sourcesCache) return sourcesCache[key];
-    try {
-        const url  = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
-        const res  = await fetch(url);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const json = JSON.parse(await res.text());
-        const sources = extractSources(json);
-        // So guarda no cache se encontrou sources — erros/vazios nao ficam cached
-        if (sources.length > 0) sourcesCache[key] = sources;
-        else sourcesCache[key] = [];
-        return sourcesCache[key];
-    } catch {
-        // Nao guarda falhas de rede no cache — permite retry automatico
-        return [];
-    }
-}
-
-async function filterByStream(matches, onProgress) {
-    const CONCURRENCY = 5;
-    const results = new Array(matches.length).fill(false);
-    let idx = 0;
-    async function worker() {
-        while (idx < matches.length) {
-            const i = idx++;
-            // Carimba a categoria para que openMatch use sempre a mesma chave
-            if (!matches[i].category) matches[i].category = activeCat;
-            const sources = await fetchSources(matches[i]);
-            results[i] = sources.length > 0;
-            if (onProgress) onProgress(i + 1, matches.length);
-        }
-    }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, matches.length) }, worker));
-    return matches.filter((_, i) => results[i]);
-}
+/* ─── Sem pre-filtragem — openMatch faz fetch directo ── */
+// Abordagem original: simples e fiavel em todos os dispositivos
 
 /* ─── Arranque ─────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -287,11 +247,8 @@ async function loadMatches(cat) {
     activeCat = cat;
     clearInterval(countdownInt);
     document.getElementById('empty-state').style.display = 'none';
-    // Limpa cache de sources desta categoria para sempre buscar dados frescos
-    Object.keys(sourcesCache).forEach(k => { if (k.endsWith('|' + cat)) delete sourcesCache[k]; });
-    // Scroll para o topo ao mudar de categoria
     document.getElementById('main-wrap').scrollTop = 0;
-    showProgress(0, 1);
+    document.getElementById('main-content').innerHTML = '';
 
     let matches;
     try {
@@ -303,26 +260,17 @@ async function loadMatches(cat) {
             ? data.filter(m => m && m.id && (!m.date || (m.date >= cutoff && m.date <= future)))
             : [];
     } catch (e) {
-        clearProgress();
         showError('Erro ao carregar: ' + e.message);
         return;
     }
 
-    if (!matches.length) {
-        allMatches = [];
-        clearProgress();
-        applyFilter();
-        return;
-    }
+    // Carimba a categoria em cada jogo
+    matches.forEach(m => { if (!m.category) m.category = cat; });
 
-    const verified = await filterByStream(matches, (done, total) => showProgress(done, total));
+    allMatches = matches;
+    updateCatLiveBadges(matches);
+    updateFilterCounts(matches);
 
-    allMatches = verified;
-    clearProgress();
-    updateCatLiveBadges(verified);
-    updateFilterCounts(verified);
-
-    // Se bottom nav estiver em Live, mostra so ao vivo
     if (activeNavMode === 'live') {
         setFilter('live', false);
     } else {
@@ -560,8 +508,7 @@ async function openMatch(match) {
     const away = teamName(match.teams?.away);
     const live = isLive(match.date);
 
-    // Mostra o player PRIMEIRO (container tem de estar visivel antes de qualquer
-    // navegacao no iframe — Android Chrome ignora iframes em display:none)
+    // Mostra o player antes de qualquer operacao no iframe
     document.getElementById('video-player-container').style.display = 'flex';
     document.getElementById('main-header').style.display = 'none';
     document.body.style.overflow = 'hidden';
@@ -571,7 +518,7 @@ async function openMatch(match) {
     document.getElementById('stream-sources').innerHTML = '';
     document.getElementById('main-iframe').style.display = '';
 
-    // Preenche info do jogo
+    // Info do jogo
     document.getElementById('player-title').textContent    = home + ' vs ' + away;
     document.getElementById('player-subtitle').textContent = (match.category || activeCat).toUpperCase();
     document.getElementById('player-live-badge').style.display = live ? 'flex' : 'none';
@@ -584,13 +531,15 @@ async function openMatch(match) {
     showSpinner();
 
     try {
-        // Tenta cache; se vazio por falha de rede, apaga e tenta de novo
-        let sources = await fetchSources(match);
-        if (!sources.length) {
-            const key = match.id.trim() + '|' + (match.category || activeCat).trim();
-            delete sourcesCache[key];
-            sources = await fetchSources(match);
-        }
+        // Fetch directo — sem cache, igual ao original que funcionava
+        const cat = (match.category || activeCat).trim();
+        const id  = match.id.trim();
+        const url = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
+        const res  = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const json = JSON.parse(await res.text());
+        const sources = extractSources(json);
+
         if (!sources.length) {
             hideSpinner();
             showNoStream('Sem stream disponivel. O jogo pode ainda nao ter comecado.');
@@ -660,25 +609,13 @@ function buildSourceButtons(sources) {
 function loadStream(source) {
     const iframe = document.getElementById('main-iframe');
     const url    = typeof source === 'string' ? source : source.url;
-
-    // Limpa mensagens anteriores, garante iframe visivel
-    document.querySelectorAll('.no-stream-msg').forEach(e => e.remove());
-    iframe.style.display = '';
     showSpinner();
-
-    // Remove handlers antigos antes de definir novos
-    iframe.onload  = null;
-    iframe.onerror = null;
-
-    // Carrega directamente — sem about:blank intermedio (causa problemas em Android)
-    // Usa requestAnimationFrame para garantir que o DOM esta pintado antes de navegar
-    requestAnimationFrame(() => {
-        iframe.onload  = () => setTimeout(hideSpinner, 500);
-        iframe.onerror = () => showNoStream('Nao foi possivel carregar a stream.');
-        iframe.src     = url;
-        // Timeout de seguranca: 25s
-        setTimeout(hideSpinner, 25000);
-    });
+    iframe.src = 'about:blank';
+    setTimeout(() => {
+        iframe.src    = url;
+        iframe.onload = () => setTimeout(hideSpinner, 500);
+        setTimeout(hideSpinner, 15000);
+    }, 300);
 }
 
 function showNoStream(detail) {
@@ -741,19 +678,7 @@ window.toggleFavsPanel = function() {
     if (open) renderFavsPanel();
 };
 
-/* ─── Progress bar ─────────────────────────────────── */
-function showProgress(done, total) {
-    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-    document.getElementById('main-content').innerHTML = `
-        <div class="progress-wrap">
-            <div class="progress-label">A verificar streams...</div>
-            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-            <div class="progress-count">${done} / ${total}</div>
-        </div>`;
-}
-function clearProgress() {
-    document.getElementById('main-content').innerHTML = '';
-}
+
 
 /* ─── Erro ─────────────────────────────────────────── */
 function showError(msg) {
@@ -778,8 +703,6 @@ window.setFilter = setFilter;
 window.refreshData = function() {
     const icon = document.getElementById('refresh-icon');
     icon.classList.add('spinning');
-    // Limpa cache de sources para forcar re-verificacao
-    Object.keys(sourcesCache).forEach(k => delete sourcesCache[k]);
     loadMatches(activeCat).finally(() => icon.classList.remove('spinning'));
 };
 window.toggleSearch = function() {
