@@ -471,3 +471,27 @@ img    { display:block; }
     .cat-icon-btn { width:60px; padding:10px 6px; }
     .card-team-name { font-size:.8rem; }
 }
+/* ── League separators ───────────────────────────── */
+.league-separator {
+    display:flex; align-items:center; gap:8px;
+    padding:14px 14px 8px;
+    margin-top:4px;
+}
+.league-separator:first-child { margin-top:0; }
+.league-sep-icon {
+    width:24px; height:24px; border-radius:50%;
+    background:var(--surface3);
+    display:flex; align-items:center; justify-content:center;
+    font-size:.6rem; color:var(--text-dim); flex-shrink:0;
+}
+.league-sep-name {
+    flex:1; font-size:.7rem; font-weight:700;
+    text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.league-sep-live {
+    font-size:.6rem; font-weight:700; color:var(--live);
+    display:flex; align-items:center; gap:4px; flex-shrink:0;
+}
+.league-sep-live i { font-size:6px; animation:blink 1s ease infinite; }
