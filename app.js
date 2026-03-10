@@ -6,6 +6,56 @@
 
 const API_BASE = 'https://api.sportsrc.org/';
 
+/* ─── TheSportsDB — logos das equipas ─────────────── */
+const logoCache = {};  // nome da equipa -> url do logo
+
+async function fetchTeamLogo(teamName) {
+    if (!teamName || teamName === '?') return null;
+    const key = teamName.toLowerCase().trim();
+    if (key in logoCache) return logoCache[key];
+
+    // Marca como pendente para não fazer pedidos duplicados
+    logoCache[key] = null;
+
+    try {
+        const url = 'https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=' + encodeURIComponent(teamName);
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const json = await res.json();
+        const team = json?.teams?.[0];
+        const logo = team?.strTeamBadge || team?.strTeamLogo || null;
+        logoCache[key] = logo;
+        return logo;
+    } catch {
+        return null;
+    }
+}
+
+// Busca logos para uma lista de jogos e actualiza os cards no DOM
+async function loadLogos(matches) {
+    await Promise.all(matches.map(async m => {
+        const home = m.teams?.home?.name;
+        const away = m.teams?.away?.name;
+        const [hLogo, aLogo] = await Promise.all([
+            fetchTeamLogo(home),
+            fetchTeamLogo(away)
+        ]);
+
+        // Actualiza o DOM se o card ainda existir
+        const card = document.querySelector(`.match-card[data-id="${m.id}"]`);
+        if (!card) return;
+
+        if (hLogo) {
+            const hEl = card.querySelector('.card-team.home .card-team-badge-fallback');
+            if (hEl) hEl.outerHTML = `<img class="card-team-badge" src="${hLogo}" alt="" onerror="this.style.display='none'">`;
+        }
+        if (aLogo) {
+            const aEl = card.querySelector('.card-team.away .card-team-badge-fallback');
+            if (aEl) aEl.outerHTML = `<img class="card-team-badge" src="${aLogo}" alt="" onerror="this.style.display='none'">`;
+        }
+    }));
+}
+
 const SPORT_ICONS = {
     football:'fa-futbol', basketball:'fa-basketball-ball', tennis:'fa-table-tennis',
     baseball:'fa-baseball-ball', hockey:'fa-hockey-puck', fight:'fa-fist-raised',
@@ -41,7 +91,7 @@ function fmtDate(ms) {
 function isLive(ms) {
     if (!ms) return false;
     const now = Date.now();
-    return ms <= now && ms >= now - 3 * 60 * 60 * 1000;
+    return ms <= now && ms >= now - 2 * 60 * 60 * 1000;
 }
 function countdown(ms) {
     const diff = ms - Date.now();
@@ -254,28 +304,90 @@ async function loadMatches(cat) {
     try {
         const data   = await apiGet({ data: 'matches', category: cat });
         const now    = Date.now();
-        const cutoff = now - 3 * 60 * 60 * 1000;
-        const future = now + 1 * 60 * 60 * 1000;
+        const cutoff = now - 2 * 60 * 60 * 1000; // ignora jogos terminados ha mais de 2h
+        const future = now + 6 * 60 * 60 * 1000; // mostra proximos 6h
         matches = Array.isArray(data)
-            ? data.filter(m => m && m.id && (!m.date || (m.date >= cutoff && m.date <= future)))
+            ? data.filter(m => m && m.id && m.date && m.date >= cutoff && m.date <= future)
             : [];
     } catch (e) {
         showError('Erro ao carregar: ' + e.message);
         return;
     }
 
-    // Carimba a categoria em cada jogo
+    // Carimba a categoria
     matches.forEach(m => { if (!m.category) m.category = cat; });
 
-    allMatches = matches;
-    updateCatLiveBadges(matches);
-    updateFilterCounts(matches);
+    const now = Date.now();
+    const liveMatches     = matches.filter(m => isLive(m.date));
+    const upcomingMatches = matches.filter(m => m.date > now);
+
+    // Mostra skeletons enquanto testa streams
+    showStreamProgress(0, liveMatches.length);
+
+    // Testa streams dos jogos ao vivo (remove jogos sem stream)
+    const liveWithStream = await filterLiveStreams(liveMatches, (done, total) => {
+        showStreamProgress(done, total);
+    });
+
+    clearStreamProgress();
+
+    // Upcoming: só mostra se o jogo ainda não começou (data futura real)
+    // e filtra jogos com data há mais de 30min no passado que não são "live"
+    const validUpcoming = upcomingMatches.filter(m => m.date > now);
+
+    allMatches = [...liveWithStream, ...validUpcoming];
+    updateCatLiveBadges(allMatches);
+    updateFilterCounts(allMatches);
 
     if (activeNavMode === 'live') {
         setFilter('live', false);
     } else {
         applyFilter();
     }
+}
+
+/* Testa streams dos jogos ao vivo — sem cache, sem envenenar resultados */
+async function filterLiveStreams(matches, onProgress) {
+    if (!matches.length) return [];
+    const CONCURRENCY = 3; // baixo para Android
+    const passed = [];
+    let idx = 0;
+
+    async function worker() {
+        while (idx < matches.length) {
+            const i = idx++;
+            const m = matches[i];
+            try {
+                const cat = m.category.trim();
+                const id  = m.id.trim();
+                const url = API_BASE + '?data=detail&category=' + encodeURIComponent(cat) + '&id=' + encodeURIComponent(id);
+                const res = await fetch(url);
+                if (res.ok) {
+                    const json = JSON.parse(await res.text());
+                    if (extractSources(json).length > 0) passed.push(m);
+                }
+            } catch { /* falha silenciosa — jogo nao aparece */ }
+            if (onProgress) onProgress(i + 1, matches.length);
+        }
+    }
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, matches.length) }, worker));
+    return passed;
+}
+
+function showStreamProgress(done, total) {
+    if (total === 0) return;
+    const pct = Math.round((done / total) * 100);
+    document.getElementById('main-content').innerHTML = `
+        <div class="progress-wrap">
+            <div class="progress-label">A verificar streams ao vivo...</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="progress-count">${done} / ${total}</div>
+        </div>`;
+}
+
+function clearStreamProgress() {
+    document.getElementById('main-content').innerHTML = '';
 }
 
 /* ─── Filtros ──────────────────────────────────────── */
@@ -368,6 +480,9 @@ function renderMatches(matches) {
         content.appendChild(card);
     });
 
+    // Busca logos em background após render
+    loadLogos(sorted);
+
     // Countdown para jogos em breve
     const soon = sorted.filter(m => !isLive(m.date) && m.date > Date.now() && (m.date - Date.now()) < 3600000);
     if (soon.length) startCountdowns(soon);
@@ -385,6 +500,7 @@ function buildCard(match) {
 
     const card = document.createElement('div');
     card.className = 'match-card' + (live ? ' is-live' : '');
+    card.dataset.id = match.id;
     card.tabIndex  = 0;
 
     // League bar
@@ -560,18 +676,23 @@ function extractSources(json) {
     if (!root) return [];
     if (Array.isArray(root.sources) && root.sources.length) {
         const found = root.sources.filter(s => s && s.embedUrl);
-        if (found.length) return found.map((s, i) => ({ name: buildSourceName(s, i), url: s.embedUrl }));
+        if (found.length) return found.map((s, i) => ({ name: buildSourceName(s, i), url: forceHttps(s.embedUrl) }));
     }
     if (Array.isArray(root.streams) && root.streams.length) {
         const found = root.streams.filter(s => s && (s.embedUrl || s.url || s.embed));
-        if (found.length) return found.map((s, i) => ({ name: buildSourceName(s, i), url: s.embedUrl || s.url || s.embed }));
+        if (found.length) return found.map((s, i) => ({ name: buildSourceName(s, i), url: forceHttps(s.embedUrl || s.url || s.embed) }));
     }
     if (Array.isArray(root) && root.length && root[0]?.embedUrl)
-        return root.filter(s => s?.embedUrl).map((s, i) => ({ name: buildSourceName(s, i), url: s.embedUrl }));
+        return root.filter(s => s?.embedUrl).map((s, i) => ({ name: buildSourceName(s, i), url: forceHttps(s.embedUrl) }));
     const single = root.embedUrl || root.embed || root.url || root.iframe || root.src;
     if (single && typeof single === 'string' && single.startsWith('http'))
-        return [{ name: 'Stream 1', url: single }];
+        return [{ name: 'Stream 1', url: forceHttps(single) }];
     return [];
+}
+
+function forceHttps(url) {
+    if (!url || typeof url !== 'string') return url;
+    return url.replace(/^http:\/\//i, 'https://');
 }
 
 function buildSourceName(s, i) {
