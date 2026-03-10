@@ -18,12 +18,12 @@ async function fetchTeamLogo(teamName) {
     logoCache[key] = null;
 
     try {
-        const url = 'https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=' + encodeURIComponent(teamName);
+        const url = 'https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=' + encodeURIComponent(teamName);
         const res = await fetch(url);
         if (!res.ok) return null;
         const json = await res.json();
         const team = json?.teams?.[0];
-        const logo = team?.strTeamBadge || team?.strTeamLogo || null;
+        const logo = team?.strBadge || team?.strTeamBadge || team?.strTeamLogo || null;
         logoCache[key] = logo;
         return logo;
     } catch {
